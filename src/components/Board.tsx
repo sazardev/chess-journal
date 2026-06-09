@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, useEffect, useRef } from "react"
-import { Chessboard, defaultPieces, type ChessboardOptions, type PieceRenderObject } from "react-chessboard"
+import { Chessboard, type ChessboardOptions } from "react-chessboard"
 import type { Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
@@ -11,19 +11,10 @@ const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
 
 const SURFACE = "#ffffff"
 const TEXT = "#000000"
-
-function makePieces(darkFill: string, lightFill: string): PieceRenderObject {
-  return Object.fromEntries(
-    Object.entries(defaultPieces).map(([key, render]) => {
-      const isWhite = key[0] === "w"
-      const fill = isWhite ? lightFill : darkFill
-      return [key, (props: Record<string, unknown>) => render({ ...props, fill })]
-    }),
-  ) as PieceRenderObject
-}
+const DARK_SQUARE = "#b0b0b0"
 
 export default function Board({ engine }: { engine: ReturnType<typeof useEngine> }) {
-  const { eval_, enabled: engineOn, loading: engineLoading } = engine
+  const { eval_, enabled: engineOn, loading: engineLoading, visualMode, candidates } = engine
   const fen = useGameStore((s) => s.fen)
   const orientation = useGameStore((s) => s.orientation)
   const makeMove = useGameStore((s) => s.makeMove)
@@ -52,8 +43,6 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
-
-  const monoPieces = useMemo(() => makePieces(TEXT, SURFACE), [])
 
   const labelSize = boardSize / 8
   const coordStyle: React.CSSProperties = {
@@ -134,13 +123,42 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
     if (selectedSquare) {
       styles[selectedSquare] = {
         ...styles[selectedSquare],
-        backgroundColor: TEXT,
-        opacity: 0.3,
+        backgroundColor: "rgba(0, 0, 0, 0.3)",
+      }
+    }
+
+    if (visualMode && candidates.length > 0) {
+      const maxScore = Math.max(...candidates.map((c) => Math.abs(c.score)), 50)
+      for (const c of candidates) {
+        const to = c.uci.slice(2, 4)
+        if (to.length < 2) continue
+
+        const abs = Math.abs(c.score)
+        const alpha = Math.min(0.55, Math.max(0.1, (abs / maxScore) * 0.45))
+
+        if (c.mate !== null) {
+          styles[to] = {
+            ...styles[to],
+            backgroundColor: c.mate > 0
+              ? `rgba(34, 197, 94, ${alpha})`
+              : `rgba(239, 68, 68, ${alpha})`,
+          }
+        } else if (c.score > 20) {
+          styles[to] = {
+            ...styles[to],
+            backgroundColor: `rgba(34, 197, 94, ${alpha})`,
+          }
+        } else if (c.score < -20) {
+          styles[to] = {
+            ...styles[to],
+            backgroundColor: `rgba(239, 68, 68, ${alpha})`,
+          }
+        }
       }
     }
 
     return styles
-  }, [highlights, selectedSquare])
+  }, [highlights, selectedSquare, visualMode, candidates])
 
   const options: ChessboardOptions = {
     id: "chess-mini",
@@ -149,7 +167,6 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
     allowDragging: true,
     allowDrawingArrows: false,
     arrows: boardArrows,
-    pieces: monoPieces,
     squareStyles,
     showNotation: false,
     animationDurationInMs: 120,
@@ -158,7 +175,7 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
       boxShadow: "none",
     },
     darkSquareStyle: {
-      backgroundColor: TEXT,
+      backgroundColor: DARK_SQUARE,
     },
     lightSquareStyle: {
       backgroundColor: SURFACE,

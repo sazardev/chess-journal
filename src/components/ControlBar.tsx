@@ -1,16 +1,45 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { toPng } from "html-to-image"
+import { Chess, type Square, type Move } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
+import { useLibraryStore } from "../stores/useLibraryStore"
 import type { useEngine } from "../hooks/useEngine"
+import type { SaveData } from "../types/save"
+
+function uciToSanList(fen: string, uciMoves: string[]): string[] {
+  const g = new Chess(fen)
+  return uciMoves.map((uci) => {
+    const from = uci.slice(0, 2) as Square
+    const to = uci.slice(2, 4) as Square
+    const promotion = uci.length > 4 ? uci[4] : undefined
+    try {
+      const move = g.move({ from, to, promotion })
+      return move ? move.san : uci
+    } catch {
+      return uci
+    }
+  })
+}
 
 export default function ControlBar({ engine }: { engine: ReturnType<typeof useEngine> }) {
-  const { eval_, enabled: engineOn, loading: engineLoading, toggle: toggleEngine } = engine
+  const {
+    eval_,
+    enabled: engineOn,
+    loading: engineLoading,
+    toggle: toggleEngine,
+    visualMode,
+    toggleVisual,
+    candidates,
+  } = engine
+
+  const fen = useGameStore((s) => s.fen)
   const reset = useGameStore((s) => s.reset)
   const flipBoard = useGameStore((s) => s.flipBoard)
   const loadPgn = useGameStore((s) => s.loadPgn)
   const getPgn = useGameStore((s) => s.getPgn)
   const getFen = useGameStore((s) => s.getFen)
+  const makeMove = useGameStore((s) => s.makeMove)
 
   const annotationMode = useBoardStore((s) => s.annotationMode)
   const toggleAnnotationMode = useBoardStore((s) => s.toggleAnnotationMode)
@@ -23,6 +52,31 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
   const [exportState, setExportState] = useState<"idle" | "loading" | "error" | "done">("idle")
   const [exportError, setExportError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const sanLine = useMemo(
+    () => (eval_.bestLine.length > 0 ? uciToSanList(fen, eval_.bestLine) : []),
+    [fen, eval_.bestLine],
+  )
+
+  const sanCandidates = useMemo(
+    () =>
+      candidates.map((c) => ({
+        ...c,
+        san: (() => {
+          try {
+            const g = new Chess(fen)
+            const from = c.uci.slice(0, 2) as Square
+            const to = c.uci.slice(2, 4) as Square
+            const prom = c.uci.length > 4 ? c.uci[4] : undefined
+            const m = g.move({ from, to, promotion: prom })
+            return m ? m.san : c.uci
+          } catch {
+            return c.uci
+          }
+        })(),
+      })),
+    [fen, candidates],
+  )
 
   const copyFen = useCallback(async () => {
     await navigator.clipboard.writeText(getFen())
@@ -47,6 +101,133 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
     },
     [loadPgn],
   )
+
+  const buildSaveData = useCallback((): SaveData => {
+    const g = useGameStore.getState()
+    const b = useBoardStore.getState()
+    const now = new Date().toISOString()
+
+    return {
+      version: 1,
+      meta: {
+        name: "Untitled",
+        rating: 0,
+        tags: [],
+        notes: "",
+        createdAt: now,
+        updatedAt: now,
+      },
+      game: {
+        fullHistory: g.fullHistory,
+        historyIndex: g.historyIndex,
+        orientation: g.orientation,
+        bookmarks: g.bookmarks,
+        comments: g.comments,
+        isPlaying: g.isPlaying,
+        playSpeed: g.playSpeed,
+      },
+      board: {
+        arrows: b.arrows.map((a) => ({ from: a.from, to: a.to, color: a.color })),
+        highlights: { ...b.highlights },
+        annotationHistory: b.annotationHistory.map((a) =>
+          a.type === "arrow"
+            ? { type: "arrow" as const, from: a.from, to: a.to }
+            : { type: "highlight" as const, square: a.square },
+        ),
+      },
+    }
+  }, [])
+
+  const handleNew = useCallback(() => {
+    const g = useGameStore.getState()
+    if (g.fullHistory.length > 0) {
+      useLibraryStore.getState().addEntry(buildSaveData())
+    }
+    reset()
+  }, [reset, buildSaveData])
+
+  const handleSave = useCallback(async () => {
+    const data = buildSaveData()
+    const json = JSON.stringify(data, null, 2)
+
+    try {
+      const { save: saveDialog } = await import("@tauri-apps/plugin-dialog")
+      const { writeTextFile: writeFile } = await import("@tauri-apps/plugin-fs")
+
+      const path = await saveDialog({
+        defaultPath: "game.chess-mini.json",
+        filters: [{ name: "Chess Mini Save", extensions: ["chess-mini.json", "json"] }],
+      })
+      if (!path) return
+      await writeFile(path, json)
+    } catch {
+      const blob = new Blob([json], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "game.chess-mini.json"
+      a.click()
+      URL.revokeObjectURL(url)
+    }
+
+    useLibraryStore.getState().addEntry(data)
+  }, [buildSaveData])
+
+  const handleLoad = useCallback(async () => {
+    const restoreState = useGameStore.getState().restoreState
+    const b = useBoardStore.getState()
+
+    try {
+      const { open: openDialog } = await import("@tauri-apps/plugin-dialog")
+      const { readTextFile: readFile } = await import("@tauri-apps/plugin-fs")
+
+      const path = await openDialog({
+        filters: [{ name: "Chess Mini Save", extensions: ["chess-mini.json", "json"] }],
+        multiple: false,
+      })
+      if (!path) return
+
+      const text = await readFile(path as string)
+      const data: SaveData = JSON.parse(text)
+
+      if (data.game && data.board) {
+        restoreState(data.game)
+
+        b.clearAll()
+        for (const a of data.board.arrows) {
+          b.addArrow(a.from as Square, a.to as Square)
+        }
+        for (const [sq, color] of Object.entries(data.board.highlights)) {
+          b.highlightSquare(sq as Square, color)
+        }
+        useLibraryStore.getState().addEntry(data)
+      }
+    } catch {
+      const input = document.createElement("input")
+      input.type = "file"
+      input.accept = ".json,.chess-mini.json"
+      input.onchange = async () => {
+        const file = input.files?.[0]
+        if (!file) return
+        const text = await file.text()
+        const data: SaveData = JSON.parse(text)
+
+        if (data.game && data.board) {
+          restoreState(data.game)
+
+          b.clearAll()
+          for (const a of data.board.arrows) {
+            b.addArrow(a.from as Square, a.to as Square)
+          }
+          for (const [sq, color] of Object.entries(data.board.highlights)) {
+            b.highlightSquare(sq as Square, color)
+          }
+          useLibraryStore.getState().addEntry(data)
+        }
+      }
+      input.click()
+    }
+  }, [])
 
   const exportPng = useCallback(async () => {
     const el = document.getElementById("chess-mini-export")
@@ -95,6 +276,16 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
     }
   }, [])
 
+  const playChip = useCallback(
+    (uci: string) => {
+      const from = uci.slice(0, 2) as Square
+      const to = uci.slice(2, 4) as Square
+      const promotion = uci.length > 4 ? uci[4] : undefined
+      makeMove(from, to, promotion)
+    },
+    [makeMove],
+  )
+
   const totalAnnotations = arrows.length + Object.keys(highlights).length
 
   const btn =
@@ -110,7 +301,7 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
   return (
     <div className="flex flex-col px-3 md:px-3 pb-3 gap-2 md:gap-3">
       <div className="flex flex-wrap items-center gap-1 md:gap-0.5">
-        <button onClick={reset} className={btn}>New</button>
+        <button onClick={handleNew} className={btn}>New</button>
         <button onClick={flipBoard} className={btn}>Flip</button>
         <button onClick={copyFen} className={btn}>
           {copied === "FEN" ? "Copied" : "FEN"}
@@ -119,6 +310,8 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
           {copied === "PGN" ? "Copied" : "PGN"}
         </button>
         <button onClick={() => fileInputRef.current?.click()} className={btn}>Import</button>
+        <button onClick={handleSave} className={btn}>Save</button>
+        <button onClick={handleLoad} className={btn}>Load</button>
         <input
           ref={fileInputRef}
           type="file"
@@ -186,10 +379,77 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
         {engineLoading ? "Loading..." : engineOn ? "Analyze On" : "Analyze Off"}
       </button>
 
-      {engineOn && eval_.depth > 0 && eval_.bestLine.length > 0 && (
-        <p className="font-mono text-[9px] leading-snug text-gray-400">
-          {eval_.bestLine.join(" ")}
-        </p>
+      {engineOn && (
+        <button
+          onClick={toggleVisual}
+          className={`font-mono text-[10px] md:text-[9px] uppercase tracking-[0.15em] py-2 md:py-1.5 transition-colors ${
+            visualMode
+              ? "bg-black text-white"
+              : "text-gray-400 hover:text-black hover:bg-gray-100"
+          }`}
+        >
+          Visual {visualMode ? "On" : "Off"}
+        </button>
+      )}
+
+      {engineOn && sanLine.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+            Best line
+          </span>
+          <div className="flex flex-wrap gap-0.5">
+            {sanLine.map((san, i) => (
+              <button
+                key={`${san}-${i}`}
+                onClick={() => playChip(eval_.bestLine[i])}
+                className="font-mono text-[10px] px-1 py-0.5 bg-gray-100 hover:bg-black hover:text-white transition-colors"
+                title="Tap to play"
+              >
+                {san}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {engineOn && visualMode && sanCandidates.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+            Candidates
+          </span>
+          <div className="flex flex-col gap-0.5">
+            {sanCandidates.map((c) => {
+              const label = c.mate !== null
+                ? `M${c.mate}`
+                : c.score > 0
+                  ? `+${(c.score / 100).toFixed(1)}`
+                  : (c.score / 100).toFixed(1)
+
+              const chipStyle = c.mate !== null
+                ? "bg-gray-100 text-black"
+                : c.score > 50
+                  ? "bg-gray-200 text-black font-semibold"
+                  : c.score < -50
+                    ? "bg-gray-50 text-gray-400"
+                    : "bg-gray-100 text-gray-400"
+
+              return (
+                <div key={c.multipv} className="flex items-center gap-1.5">
+                  <span className="font-mono text-[9px] w-10 text-right tabular-nums text-gray-400">
+                    {label}
+                  </span>
+                  <button
+                    onClick={() => playChip(c.uci)}
+                    className={`font-mono text-[10px] px-1 py-0.5 transition-colors hover:bg-black hover:text-white ${chipStyle}`}
+                    title="Tap to play"
+                  >
+                    {c.san}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )}
 
       <button

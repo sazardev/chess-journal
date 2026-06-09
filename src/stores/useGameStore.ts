@@ -3,7 +3,7 @@ import { Chess, type Move, type Square } from "chess.js"
 
 export interface GameState {
   fen: string
-  history: Move[]
+  fullHistory: Move[]
   historyIndex: number
   orientation: "white" | "black"
   game: Chess
@@ -29,6 +29,15 @@ export interface GameState {
   reset: () => void
   loadFen: (fen: string) => void
   loadPgn: (pgn: string) => void
+  restoreState: (state: {
+    fullHistory: Move[]
+    historyIndex: number
+    orientation: "white" | "black"
+    bookmarks: number[]
+    comments: Record<number, string>
+    isPlaying: boolean
+    playSpeed: number
+  }) => void
   getPgn: () => string
   getFen: () => string
   togglePlay: () => void
@@ -42,7 +51,6 @@ export interface GameState {
 function computeState(game: Chess, historyIndex: number) {
   return {
     fen: game.fen(),
-    history: game.history({ verbose: true }),
     historyIndex,
     turn: game.turn(),
     isCheck: game.isCheck(),
@@ -52,11 +60,19 @@ function computeState(game: Chess, historyIndex: number) {
   }
 }
 
+function rebuildGame(game: Chess, fullHistory: Move[], upTo: number) {
+  game.reset()
+  for (let i = 0; i < upTo; i++) {
+    game.move(fullHistory[i].san)
+  }
+}
+
 export const useGameStore = create<GameState>((set, get) => {
   const game = new Chess()
 
   return {
     game,
+    fullHistory: [],
     ...computeState(game, 0),
     orientation: "white",
     isPlaying: false,
@@ -65,8 +81,10 @@ export const useGameStore = create<GameState>((set, get) => {
     comments: {},
 
     makeMove: (from, to, promotion) => {
-      const { game } = get()
+      const { game, fullHistory, historyIndex } = get()
       try {
+        rebuildGame(game, fullHistory, historyIndex)
+
         const piece = game.get(from)
         if (piece && piece.type === "p") {
           const rank = to[1]
@@ -79,8 +97,9 @@ export const useGameStore = create<GameState>((set, get) => {
         }
         const result = game.move({ from, to, promotion })
         if (!result) return false
-        const idx = game.history({ verbose: true }).length
-        set(computeState(game, idx))
+
+        const next = [...fullHistory.slice(0, historyIndex), result]
+        set({ fullHistory: next, ...computeState(game, historyIndex + 1) })
         return true
       } catch {
         return false
@@ -88,12 +107,15 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     makeMoveSan: (san) => {
-      const { game } = get()
+      const { game, fullHistory, historyIndex } = get()
       try {
+        rebuildGame(game, fullHistory, historyIndex)
+
         const result = game.move(san)
         if (!result) return false
-        const idx = game.history({ verbose: true }).length
-        set(computeState(game, idx))
+
+        const next = [...fullHistory.slice(0, historyIndex), result]
+        set({ fullHistory: next, ...computeState(game, historyIndex + 1) })
         return true
       } catch {
         return false
@@ -101,53 +123,38 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     undo: () => {
-      const { game, historyIndex } = get()
-      if (historyIndex < 1) return
-      game.undo()
-      set(computeState(game, historyIndex - 1))
+      get().goBack()
     },
 
     goToStart: () => {
       const { game } = get()
-      while (game.history().length > 0) {
-        game.undo()
-      }
+      game.reset()
       set({ ...computeState(game, 0), isPlaying: false })
     },
 
     goToEnd: () => {
-      const { game, history } = get()
-      const total = game.history({ verbose: true }).length
-      if (total < history.length) {
-        game.reset()
-        for (let i = 0; i < total; i++) {
-          game.move(history[i].san)
-        }
-      }
-      set({ ...computeState(game, total), isPlaying: false })
+      const { game, fullHistory } = get()
+      rebuildGame(game, fullHistory, fullHistory.length)
+      set({ ...computeState(game, fullHistory.length), isPlaying: false })
     },
 
     goBack: () => {
-      const { game, historyIndex } = get()
+      const { game, historyIndex, fullHistory } = get()
       if (historyIndex < 1) return
-      game.undo()
+      rebuildGame(game, fullHistory, historyIndex - 1)
       set(computeState(game, historyIndex - 1))
     },
 
     goForward: () => {
-      const { game, history, historyIndex } = get()
-      if (historyIndex >= history.length) return
-      const move = history[historyIndex]
-      game.move(move.san)
+      const { game, historyIndex, fullHistory } = get()
+      if (historyIndex >= fullHistory.length) return
+      game.move(fullHistory[historyIndex].san)
       set(computeState(game, historyIndex + 1))
     },
 
     goToMove: (index) => {
-      const { game, history } = get()
-      game.reset()
-      for (let i = 0; i < index; i++) {
-        game.move(history[i].san)
-      }
+      const { game, fullHistory } = get()
+      rebuildGame(game, fullHistory, index)
       set(computeState(game, index))
     },
 
@@ -160,6 +167,7 @@ export const useGameStore = create<GameState>((set, get) => {
       const g = new Chess()
       set({
         game: g,
+        fullHistory: [],
         ...computeState(g, 0),
         orientation: "white",
         isPlaying: false,
@@ -172,6 +180,7 @@ export const useGameStore = create<GameState>((set, get) => {
       const g = new Chess(fen)
       set({
         game: g,
+        fullHistory: [],
         ...computeState(g, 0),
         bookmarks: [],
         comments: {},
@@ -181,21 +190,40 @@ export const useGameStore = create<GameState>((set, get) => {
     loadPgn: (pgn) => {
       const g = new Chess()
       g.loadPgn(pgn)
-      const total = g.history({ verbose: true }).length
+      const fullHistory = g.history({ verbose: true })
       set({
         game: g,
-        ...computeState(g, total),
+        fullHistory,
+        ...computeState(g, fullHistory.length),
         bookmarks: [],
         comments: {},
       })
     },
 
-    getPgn: () => {
-      const { game, history, comments } = get()
+    restoreState: (state) => {
       const g = new Chess()
-      for (let i = 0; i < history.length; i++) {
+      rebuildGame(g, state.fullHistory, state.historyIndex)
+      set({
+        game: g,
+        fullHistory: state.fullHistory,
+        ...computeState(g, state.historyIndex),
+        orientation: state.orientation,
+        bookmarks: state.bookmarks,
+        comments: state.comments,
+        isPlaying: false,
+        playSpeed: state.playSpeed,
+      })
+    },
+
+    getPgn: () => {
+      const { game, fullHistory, comments } = get()
+      const g = new Chess()
+      for (let i = 0; i < fullHistory.length; i++) {
         const comment = comments[i]
-        g.move(history[i].san, comment ? { comment } : undefined)
+        g.move(
+          fullHistory[i].san,
+          comment ? ({ comment } as Record<string, unknown>) : undefined,
+        )
       }
       return g.pgn()
     },
@@ -205,9 +233,9 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     togglePlay: () => {
-      const { isPlaying, historyIndex, history, isGameOver } = get()
+      const { isPlaying, historyIndex, fullHistory, isGameOver } = get()
       if (isGameOver) return
-      const atEnd = historyIndex >= history.length
+      const atEnd = historyIndex >= fullHistory.length
       set({ isPlaying: atEnd ? false : !isPlaying })
     },
 

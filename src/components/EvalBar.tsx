@@ -9,7 +9,6 @@ interface EvalBarProps {
 export default function EvalBar({ score, mate, height }: EvalBarProps) {
   const { barH, barY, label } = useMemo(() => {
     if (mate !== null) {
-      const winning = mate > 0
       return {
         barH: height,
         barY: 0,

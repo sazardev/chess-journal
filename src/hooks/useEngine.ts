@@ -8,15 +8,23 @@ export interface EvalResult {
   bestLine: string[]
 }
 
+export interface Candidate {
+  uci: string
+  score: number
+  mate: number | null
+  multipv: number
+}
+
 export function useEngine() {
   const [enabled, setEnabled] = useState(false)
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
+  const [visualMode, setVisualMode] = useState(false)
   const [eval_, setEval] = useState<EvalResult>({ score: 0, mate: null, depth: 0, bestLine: [] })
+  const [candidates, setCandidates] = useState<Candidate[]>([])
 
   const workerRef = useRef<Worker | null>(null)
   const searchingRef = useRef(false)
-  const pendingRef = useRef(false)
   const fenRef = useRef("")
   const enabledRef = useRef(enabled)
   enabledRef.current = enabled
@@ -32,9 +40,10 @@ export function useEngine() {
       }
       setReady(false)
       setLoading(false)
+      setVisualMode(false)
       setEval({ score: 0, mate: null, depth: 0, bestLine: [] })
+      setCandidates([])
       searchingRef.current = false
-      pendingRef.current = false
       return
     }
 
@@ -43,12 +52,16 @@ export function useEngine() {
     const worker = new Worker("/stockfish-engine.js")
     workerRef.current = worker
 
+    let candidatesDepth = 0
+    const candidatesMap = new Map<number, Candidate>()
+
     worker.onmessage = (e: MessageEvent<string>) => {
       const line = e.data
 
       if (line === "uciok") {
         setReady(true)
         setLoading(false)
+        worker.postMessage("setoption name MultiPV value 8")
         return
       }
 
@@ -57,17 +70,44 @@ export function useEngine() {
       const depthMatch = line.match(/depth (\d+)/)
       const cpMatch = line.match(/score cp (-?\d+)/)
       const mateMatch = line.match(/score mate (-?\d+)/)
+      const multipvMatch = line.match(/multipv (\d+)/)
       const pvMatch = line.match(/ pv (.+?)(?:\s+(?:nodes|time|seldepth|score|nps|upperbound|lowerbound|hashfull|tbhits|multipv|currmove|currmovenumber|string)\s|\s*$)/)
 
+      const depth = depthMatch ? Number(depthMatch[1]) : 0
+
       setEval((prev) => {
-        const next: EvalResult = {
-          score: cpMatch ? Number(cpMatch[1]) : prev.score,
-          mate: mateMatch ? Number(mateMatch[1]) : cpMatch ? null : prev.mate,
+        const isBest = !multipvMatch || Number(multipvMatch[1]) === 1
+        return {
+          score: cpMatch && isBest ? Number(cpMatch[1]) : prev.score,
+          mate: mateMatch && isBest ? Number(mateMatch[1]) : cpMatch && isBest ? null : prev.mate,
           depth: depthMatch ? Number(depthMatch[1]) : prev.depth,
-          bestLine: pvMatch ? pvMatch[1].trim().split(" ") : prev.bestLine,
+          bestLine: pvMatch && isBest ? pvMatch[1].trim().split(" ") : prev.bestLine,
         }
-        return next
       })
+
+      const mpv = multipvMatch ? Number(multipvMatch[1]) : 0
+
+      if (mpv > 0 && pvMatch) {
+        const pvMoves = pvMatch[1].trim().split(" ")
+        const firstMove = pvMoves[0]
+
+        if (depth > candidatesDepth) {
+          candidatesDepth = depth
+          candidatesMap.clear()
+        }
+
+        if (depth === candidatesDepth && firstMove) {
+          candidatesMap.set(mpv, {
+            uci: firstMove,
+            score: cpMatch ? Number(cpMatch[1]) : 0,
+            mate: mateMatch ? Number(mateMatch[1]) : null,
+            multipv: mpv,
+          })
+          setCandidates(
+            Array.from(candidatesMap.values()).sort((a, b) => a.multipv - b.multipv),
+          )
+        }
+      }
     }
 
     worker.onerror = () => {
@@ -92,15 +132,13 @@ export function useEngine() {
     if (searchingRef.current) {
       w.postMessage("stop")
       searchingRef.current = false
-      pendingRef.current = true
     }
 
     const timer = setTimeout(() => {
       if (!enabledRef.current) return
       w.postMessage("position fen " + fenRef.current)
-      w.postMessage("go depth 18")
+      w.postMessage("go depth 16")
       searchingRef.current = true
-      pendingRef.current = false
     }, 80)
 
     return () => {
@@ -112,5 +150,9 @@ export function useEngine() {
     setEnabled((e) => !e)
   }, [])
 
-  return { enabled, loading, ready, eval_: eval_, toggle }
+  const toggleVisual = useCallback(() => {
+    setVisualMode((v) => !v)
+  }, [])
+
+  return { enabled, loading, ready, eval_: eval_, candidates, visualMode, toggle, toggleVisual }
 }

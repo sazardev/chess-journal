@@ -10,7 +10,7 @@ export function useAutoplay() {
 
     const id = setInterval(() => {
       const state = useGameStore.getState()
-      if (state.historyIndex >= state.history.length || state.isGameOver) {
+      if (state.historyIndex >= state.fullHistory.length || state.isGameOver) {
         useGameStore.setState({ isPlaying: false })
         return
       }

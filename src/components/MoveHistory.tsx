@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react"
 import { useGameStore } from "../stores/useGameStore"
 
 export default function MoveHistory() {
-  const history = useGameStore((s) => s.history)
+  const history = useGameStore((s) => s.fullHistory)
   const historyIndex = useGameStore((s) => s.historyIndex)
   const goToMove = useGameStore((s) => s.goToMove)
   const goToStart = useGameStore((s) => s.goToStart)

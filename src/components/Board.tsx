@@ -1,10 +1,29 @@
-import { useCallback, useMemo, useState, useEffect } from "react"
-import { Chessboard, type ChessboardOptions } from "react-chessboard"
+import { useCallback, useMemo, useState, useEffect, useRef } from "react"
+import { Chessboard, defaultPieces, type ChessboardOptions, type PieceRenderObject } from "react-chessboard"
 import type { Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
+import EvalBar from "./EvalBar"
+import type { useEngine } from "../hooks/useEngine"
 
-export default function Board() {
+const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
+const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"]
+
+const SURFACE = "#ffffff"
+const TEXT = "#000000"
+
+function makePieces(darkFill: string, lightFill: string): PieceRenderObject {
+  return Object.fromEntries(
+    Object.entries(defaultPieces).map(([key, render]) => {
+      const isWhite = key[0] === "w"
+      const fill = isWhite ? lightFill : darkFill
+      return [key, (props: Record<string, unknown>) => render({ ...props, fill })]
+    }),
+  ) as PieceRenderObject
+}
+
+export default function Board({ engine }: { engine: ReturnType<typeof useEngine> }) {
+  const { eval_, enabled: engineOn, loading: engineLoading } = engine
   const fen = useGameStore((s) => s.fen)
   const orientation = useGameStore((s) => s.orientation)
   const makeMove = useGameStore((s) => s.makeMove)
@@ -17,17 +36,41 @@ export default function Board() {
   const highlights = useBoardStore((s) => s.highlights)
   const highlightSquare = useBoardStore((s) => s.highlightSquare)
 
-  const [boardWidth, setBoardWidth] = useState(560)
+  const [boardSize, setBoardSize] = useState(560)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    function resize() {
-      const w = Math.min(window.innerHeight * 0.7, window.innerWidth * 0.55, 640)
-      setBoardWidth(Math.max(280, w))
-    }
-    resize()
-    window.addEventListener("resize", resize)
-    return () => window.removeEventListener("resize", resize)
+    const el = containerRef.current?.parentElement
+    if (!el) return
+
+    const ro = new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width
+      const h = entry.contentRect.height
+      const size = Math.floor(Math.min((Math.max(w, 200) * 8) / 9, (Math.max(h, 200) * 8) / 9, 640))
+      setBoardSize(Math.max(200, size))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
+
+  const monoPieces = useMemo(() => makePieces(TEXT, SURFACE), [])
+
+  const labelSize = boardSize / 8
+  const coordStyle: React.CSSProperties = {
+    width: labelSize,
+    height: labelSize,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: "var(--font-mono)",
+    fontSize: Math.max(9, labelSize * 0.2),
+    fontWeight: 500,
+    color: "#a3a3a3",
+    userSelect: "none",
+  }
+
+  const filesDisplay = orientation === "white" ? FILES : [...FILES].reverse()
+  const ranksDisplay = orientation === "white" ? RANKS : [...RANKS].reverse()
 
   const boardArrows = useMemo(
     () =>
@@ -52,7 +95,7 @@ export default function Board() {
       const square = args.square as Square
 
       if (annotationMode === "highlight") {
-        highlightSquare(square, "var(--text-primary)")
+        highlightSquare(square, TEXT)
         return
       }
       if (annotationMode === "arrow") {
@@ -91,8 +134,8 @@ export default function Board() {
     if (selectedSquare) {
       styles[selectedSquare] = {
         ...styles[selectedSquare],
-        backgroundColor: "var(--text-primary)",
-        opacity: 0.35,
+        backgroundColor: TEXT,
+        opacity: 0.3,
       }
     }
 
@@ -104,27 +147,62 @@ export default function Board() {
     position: fen,
     boardOrientation: orientation,
     allowDragging: true,
-    allowDrawingArrows: true,
+    allowDrawingArrows: false,
     arrows: boardArrows,
+    pieces: monoPieces,
     squareStyles,
-    animationDurationInMs: 150,
+    showNotation: false,
+    animationDurationInMs: 120,
     boardStyle: {
       borderRadius: "0",
       boxShadow: "none",
     },
     darkSquareStyle: {
-      backgroundColor: "#1a1a1a",
+      backgroundColor: TEXT,
     },
     lightSquareStyle: {
-      backgroundColor: "#ebebeb",
+      backgroundColor: SURFACE,
     },
     onPieceDrop,
     onSquareClick,
   }
 
   return (
-    <div className="flex items-center justify-center" style={{ width: boardWidth, height: boardWidth }}>
-      <Chessboard options={options} />
+    <div ref={containerRef} id="chess-mini-export" className="flex flex-col items-center">
+      <div className="flex">
+        <div className="flex flex-col">
+          {ranksDisplay.map((rank) => (
+            <div key={rank} style={coordStyle}>
+              {rank}
+            </div>
+          ))}
+        </div>
+
+        {engineOn && (
+          <EvalBar
+            score={eval_.score}
+            mate={eval_.mate}
+            height={boardSize}
+          />
+        )}
+        {engineLoading && (
+          <div className="w-2 shrink-0 flex items-center justify-center" style={{ height: boardSize }}>
+            <div className="w-1 h-1 rounded-full bg-gray-300 animate-pulse" />
+          </div>
+        )}
+
+        <div style={{ width: boardSize, height: boardSize }}>
+          <Chessboard options={options} />
+        </div>
+      </div>
+
+      <div className="flex" style={{ paddingLeft: labelSize }}>
+        {filesDisplay.map((file) => (
+          <div key={file} style={coordStyle}>
+            {file}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

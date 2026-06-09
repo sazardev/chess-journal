@@ -7,12 +7,17 @@ export interface Arrow {
   color: string
 }
 
+type Annotation =
+  | { type: "arrow"; from: Square; to: Square }
+  | { type: "highlight"; square: Square }
+
 interface BoardState {
   selectedSquare: Square | null
   arrows: Arrow[]
   highlights: Record<string, string>
   annotationMode: "none" | "arrow" | "highlight"
   rightClickedSquare: Square | null
+  annotationHistory: Annotation[]
 
   selectSquare: (square: Square | null) => void
   toggleAnnotationMode: (mode: "arrow" | "highlight") => void
@@ -22,6 +27,7 @@ interface BoardState {
   clearArrows: () => void
   highlightSquare: (square: Square, color: string) => void
   clearHighlights: () => void
+  undoLastAnnotation: () => void
   clearAll: () => void
 }
 
@@ -31,6 +37,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   highlights: {},
   annotationMode: "none",
   rightClickedSquare: null,
+  annotationHistory: [],
 
   selectSquare: (square) => {
     set({ selectedSquare: square })
@@ -49,14 +56,15 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   },
 
   addArrow: (from, to) => {
-    const { arrows } = get()
+    const { arrows, annotationHistory } = get()
     const exists = arrows.find((a) => a.from === from && a.to === to)
     if (exists) return
     set({
       arrows: [
         ...arrows,
-        { from, to, color: "var(--text-primary)" },
+        { from, to, color: "#757575" },
       ],
+      annotationHistory: [...annotationHistory, { type: "arrow", from, to }],
     })
   },
 
@@ -70,17 +78,43 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   },
 
   highlightSquare: (square, color) => {
-    const { highlights } = get()
+    const { highlights, annotationHistory } = get()
     if (highlights[square]) {
       const { [square]: _, ...rest } = highlights
       set({ highlights: rest })
     } else {
-      set({ highlights: { ...highlights, [square]: color } })
+      set({
+        highlights: { ...highlights, [square]: color },
+        annotationHistory: [...annotationHistory, { type: "highlight", square }],
+      })
     }
   },
 
   clearHighlights: () => {
     set({ highlights: {} })
+  },
+
+  undoLastAnnotation: () => {
+    const { annotationHistory, arrows, highlights } = get()
+    if (annotationHistory.length === 0) return
+
+    const last = annotationHistory[annotationHistory.length - 1]
+    const rest = annotationHistory.slice(0, -1)
+
+    if (last.type === "arrow") {
+      set({
+        arrows: arrows.filter(
+          (a) => !(a.from === last.from && a.to === last.to),
+        ),
+        annotationHistory: rest,
+      })
+    } else {
+      const { [last.square]: _, ...remaining } = highlights
+      set({
+        highlights: remaining,
+        annotationHistory: rest,
+      })
+    }
   },
 
   clearAll: () => {
@@ -90,6 +124,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
       annotationMode: "none",
       rightClickedSquare: null,
       selectedSquare: null,
+      annotationHistory: [],
     })
   },
 }))

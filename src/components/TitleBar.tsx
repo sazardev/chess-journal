@@ -17,10 +17,10 @@ export default function TitleBar() {
   return (
     <div
       data-tauri-drag-region
-      className="fixed top-0 left-0 right-0 z-50 flex h-9 items-center justify-between border-b border-border bg-surface px-2 select-none"
+      className="fixed top-0 left-0 right-0 z-50 flex h-9 items-center justify-between bg-white px-2 select-none"
     >
       <div className="flex items-center gap-2 pl-2">
-        <span className="font-mono text-[10px] tracking-widest uppercase text-text-secondary">
+        <span className="font-mono text-[10px] tracking-widest uppercase text-gray-400">
           Chess Mini
         </span>
       </div>
@@ -28,7 +28,7 @@ export default function TitleBar() {
       <div className="flex items-center">
         <button
           onClick={minimize}
-          className="flex h-8 w-10 items-center justify-center transition-colors hover:bg-mono-100 dark:hover:bg-mono-800"
+          className="flex h-8 w-8 md:w-10 items-center justify-center text-gray-400 transition-colors hover:bg-gray-100 hover:text-black"
           aria-label="Minimize"
         >
           <svg width="10" height="1" viewBox="0 0 10 1">
@@ -38,13 +38,13 @@ export default function TitleBar() {
 
         <button
           onClick={handleToggleMaximize}
-          className="flex h-8 w-10 items-center justify-center transition-colors hover:bg-mono-100 dark:hover:bg-mono-800"
+          className="flex h-8 w-8 md:w-10 items-center justify-center text-gray-400 transition-colors hover:bg-gray-100 hover:text-black"
           aria-label={maximized ? "Restore" : "Maximize"}
         >
           {maximized ? (
             <svg width="10" height="10" viewBox="0 0 10 10">
               <rect x="2" y="0" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="1" />
-              <rect x="0" y="2" width="8" height="8" fill="var(--surface)" stroke="currentColor" strokeWidth="1" />
+              <rect x="0" y="2" width="8" height="8" fill="#fff" stroke="currentColor" strokeWidth="1" />
             </svg>
           ) : (
             <svg width="10" height="10" viewBox="0 0 10 10">
@@ -55,7 +55,7 @@ export default function TitleBar() {
 
         <button
           onClick={close}
-          className="flex h-8 w-10 items-center justify-center transition-colors hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
+          className="flex h-8 w-8 md:w-10 items-center justify-center text-gray-400 transition-colors hover:bg-black hover:text-white"
           aria-label="Close"
         >
           <svg width="10" height="10" viewBox="0 0 10 10">

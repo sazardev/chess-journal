@@ -3,45 +3,9 @@
 @theme {
   --font-sans: "General Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-
-  --color-mono-0: oklch(1 0 0);
-  --color-mono-50: oklch(0.97 0 0);
-  --color-mono-100: oklch(0.91 0 0);
-  --color-mono-200: oklch(0.82 0 0);
-  --color-mono-300: oklch(0.7 0 0);
-  --color-mono-400: oklch(0.55 0 0);
-  --color-mono-500: oklch(0.4 0 0);
-  --color-mono-600: oklch(0.3 0 0);
-  --color-mono-700: oklch(0.21 0 0);
-  --color-mono-800: oklch(0.14 0 0);
-  --color-mono-900: oklch(0.08 0 0);
-  --color-mono-950: oklch(0.04 0 0);
-  --color-mono-1000: oklch(0 0 0);
-
-  --color-surface: var(--surface);
-  --color-border: var(--border);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-accent: var(--accent);
 }
 
 @layer base {
-  :root {
-    --surface: oklch(1 0 0);
-    --border: oklch(0.14 0 0);
-    --text-primary: oklch(0 0 0);
-    --text-secondary: oklch(0.4 0 0);
-    --accent: oklch(0 0 0);
-  }
-
-  .dark {
-    --surface: oklch(0 0 0);
-    --border: oklch(0.91 0 0);
-    --text-primary: oklch(1 0 0);
-    --text-secondary: oklch(0.7 0 0);
-    --accent: oklch(1 0 0);
-  }
-
   * {
     margin: 0;
     padding: 0;
@@ -57,10 +21,26 @@
 
   body {
     font-family: var(--font-sans);
-    background: var(--surface);
-    color: var(--text-primary);
+    background: #fff;
+    color: #000;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     user-select: none;
+  }
+
+  [data-piece^="b"] {
+    filter:
+      drop-shadow( 0.8px  0     0 #fff)
+      drop-shadow(-0.8px  0     0 #fff)
+      drop-shadow( 0      0.8px 0 #fff)
+      drop-shadow( 0     -0.8px 0 #fff);
+  }
+
+  [data-piece^="w"] {
+    filter:
+      drop-shadow( 0.8px  0     0 #000)
+      drop-shadow(-0.8px  0     0 #000)
+      drop-shadow( 0      0.8px 0 #000)
+      drop-shadow( 0     -0.8px 0 #000);
   }
 }

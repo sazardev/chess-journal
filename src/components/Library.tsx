@@ -7,7 +7,7 @@ import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { newGame } from "../lib/session"
 import OpeningStats from "./OpeningStats"
-import { CLASSICS, type ClassicGame, type ClassicCategory } from "../data/classics"
+import { HISTORIC, loadClassics, type ClassicGame, type ClassicCategory } from "../data/classics"
 
 const CAT_ORDER: ClassicCategory[] = ["historic", "bullet", "blitz", "rapid", "classical"]
 const CAT_LABEL: Record<ClassicCategory, string> = {
@@ -55,6 +55,11 @@ export default function Library({ open, onToggle }: Props) {
   const [tab, setTab] = useState<"mine" | "classics">("mine")
   const [classicsSearch, setClassicsSearch] = useState("")
   const [classicsCat, setClassicsCat] = useState<"all" | ClassicCategory>("all")
+  const [classicsGames, setClassicsGames] = useState<ClassicGame[]>(HISTORIC)
+
+  useEffect(() => {
+    if (tab === "classics") loadClassics().then(setClassicsGames)
+  }, [tab])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [deletedEntry, setDeletedEntry] = useState<{ id: string; entry: ReturnType<typeof useLibraryStore.getState>["entries"][0] } | null>(null)
@@ -248,8 +253,8 @@ export default function Library({ open, onToggle }: Props) {
 
   const classicsView = useMemo(() => {
     const q = classicsSearch.toLowerCase().trim()
-    const cats = CAT_ORDER.filter((c) => CLASSICS.some((g) => g.category === c))
-    const list = CLASSICS.filter((g) => {
+    const cats = CAT_ORDER.filter((c) => classicsGames.some((g) => g.category === c))
+    const list = classicsGames.filter((g) => {
       if (classicsCat !== "all" && g.category !== classicsCat) return false
       if (!q) return true
       return (
@@ -262,7 +267,7 @@ export default function Library({ open, onToggle }: Props) {
       )
     })
     return { list, cats }
-  }, [classicsSearch, classicsCat])
+  }, [classicsSearch, classicsCat, classicsGames])
 
   const renderEntry = (entry: (typeof entries)[0]) => {
     const isLoaded = loadedId === entry.id

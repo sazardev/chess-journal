@@ -96,18 +96,23 @@ npm run tauri build    # produce the installer in src-tauri/target/release/bundl
 
 ## Populate the Classics library
 
-The "Classics" tab ships with a few curated, validated historic games. To add
-hundreds of real modern games (Carlsen, bullet, specific openings) with their
-opening, ELO and time control, run from a network that can reach lichess.org:
+The "Classics" tab is fed by `src/data/classics-modern.json` (loaded lazily) plus
+the curated historic games in `src/data/classics.ts`.
 
-```bash
-node scripts/fetch-classics.mjs   # edit SPECS in the script to pick players/speeds
-node scripts/validate-classics.mjs
-```
+- **Rebuild the bank from GitHub PGN collections** (legends + famous games — works
+  anywhere GitHub is reachable):
+  ```bash
+  node scripts/build-classics-pgn.mjs   # edit PLAYERS / caps in the script
+  ```
+- **Add live games from Lichess** (Carlsen, bullet, specific players) — run on a
+  network that can reach lichess.org:
+  ```bash
+  node scripts/fetch-classics.mjs       # edit SPECS in the script
+  ```
 
-It writes `src/data/classics-modern.json`. Commit it and the next release ships
-the games. Hand-authored games live in `src/data/classics.ts` (validate with the
-script above).
+Either writes `src/data/classics-modern.json`. Commit it and the next release ships
+the games. Validate hand-authored games in `classics.ts` with
+`node scripts/validate-classics.mjs`.
 
 ## Regenerate the app icon
 

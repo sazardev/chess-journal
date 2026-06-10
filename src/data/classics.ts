@@ -1,5 +1,3 @@
-import MODERN from "./classics-modern.json"
-
 export type ClassicCategory = "historic" | "bullet" | "blitz" | "rapid" | "classical"
 
 export interface ClassicGame {
@@ -22,9 +20,10 @@ export interface ClassicGame {
 }
 
 // Curated legendary games — move scores are public domain, validated against
-// chess.js (scripts/validate-classics.mjs). Bulk modern/bullet games come from
-// classics-modern.json (populate with `node scripts/fetch-classics.mjs`).
-const HISTORIC: ClassicGame[] = [
+// chess.js (scripts/validate-classics.mjs). The large varied bank lives in
+// classics-modern.json (built by scripts/build-classics-pgn.mjs) and is loaded
+// lazily so it never bloats the initial bundle.
+export const HISTORIC: ClassicGame[] = [
   {
     id: "opera-1858",
     white: "Paul Morphy",
@@ -116,4 +115,17 @@ const HISTORIC: ClassicGame[] = [
   },
 ]
 
-export const CLASSICS: ClassicGame[] = [...HISTORIC, ...(MODERN as ClassicGame[])]
+let cache: ClassicGame[] | null = null
+
+/** Curated historic games + the lazily-loaded bulk bank. */
+export async function loadClassics(): Promise<ClassicGame[]> {
+  if (cache) return cache
+  try {
+    const m = await import("./classics-modern.json")
+    const modern = ((m as { default?: ClassicGame[] }).default ?? []) as ClassicGame[]
+    cache = [...HISTORIC, ...modern]
+  } catch {
+    cache = [...HISTORIC]
+  }
+  return cache
+}

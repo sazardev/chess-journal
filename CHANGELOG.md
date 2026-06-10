@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Big local game bank — ~930 real games from 60+ chess legends across every era (Morphy, Capablanca, Alekhine, Fischer, Kasparov, Karpov, Carlsen, Caruana, Ding, Firouzja…) plus famous games (Kasparov–Deep Blue, WCC 2023). Built by `scripts/build-classics-pgn.mjs` from public PGN collections; opening names derived from the ECO base; loaded lazily.
+
+### Changed
+- Classics search now matches player first names too — search "magnus", "bobby", "garry", "vishy"…
+- The Classics bank loads on demand (kept out of the initial bundle).
+
 ## [0.1.4] - 2026-06-10
 
 ### Added

@@ -1,9 +1,12 @@
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Square } from "chess.js"
 import { useLibraryStore } from "../stores/useLibraryStore"
+import { usePersistenceStore } from "../stores/usePersistenceStore"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
+
+const SORT_LABELS = ["Newest", "Oldest", "A-Z", "Z-A", "Moves ↑", "Moves ↓", "Rating ↑", "Rating ↓"] as const
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -25,34 +28,41 @@ interface Props {
 export default function Library({ open, onToggle }: Props) {
   const entries = useLibraryStore((s) => s.entries)
   const removeEntry = useLibraryStore((s) => s.removeEntry)
+  const togglePin = useLibraryStore((s) => s.togglePin)
+  const updateEntryMeta = useLibraryStore((s) => s.updateEntryMeta)
   const [loadedId, setLoadedId] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [sortIdx, setSortIdx] = useState(0)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState("")
+  const [deletedEntry, setDeletedEntry] = useState<{ id: string; entry: ReturnType<typeof useLibraryStore.getState>["entries"][0] } | null>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const undoRef = useRef<ReturnType<typeof setTimeout>>()
+
+  useEffect(() => {
+    if (open && searchRef.current) {
+      searchRef.current.focus()
+      setSearch("")
+      setSortIdx(0)
+    }
+  }, [open])
+
+  useEffect(() => {
+    return () => {
+      if (undoRef.current !== undefined) clearTimeout(undoRef.current)
+    }
+  }, [])
 
   const handleLoad = useCallback(
     (entryId: string) => {
       const state = useLibraryStore.getState()
       const entry = state.entries.find((e) => e.id === entryId)
-      if (!entry) {
-        console.error("[Library] entry not found:", entryId, "available:", state.entries.map((e) => e.id))
-        return
-      }
-
-      console.log("[Library] loading entry:", entry.id, entry.data.meta.name, entry.data.game.fullHistory.length, "moves")
+      if (!entry) return
 
       const { game, board } = entry.data
+      if (!game || !game.fullHistory) return
 
-      if (!game || !game.fullHistory) {
-        console.error("[Library] invalid game data in entry:", entry)
-        return
-      }
-
-      try {
-        useGameStore.getState().restoreState({ ...game, currentLibraryId: entryId })
-        console.log("[Library] restoreState done, fen:", useGameStore.getState().fen)
-      } catch (err) {
-        console.error("[Library] restoreState error:", err)
-        return
-      }
-
+      useGameStore.getState().restoreState({ ...game, currentLibraryId: entryId })
       useMetaStore.getState().load(entry.data.meta)
 
       const b = useBoardStore.getState()
@@ -73,13 +83,214 @@ export default function Library({ open, onToggle }: Props) {
   const handleDelete = useCallback(
     (e: React.MouseEvent, id: string) => {
       e.stopPropagation()
+      const entry = useLibraryStore.getState().entries.find((x) => x.id === id)
+      if (!entry) return
       removeEntry(id)
+      setDeletedEntry({ id, entry })
       if (useGameStore.getState().currentLibraryId === id) {
         useGameStore.setState({ currentLibraryId: null })
       }
+      if (undoRef.current !== undefined) clearTimeout(undoRef.current)
+      undoRef.current = setTimeout(() => setDeletedEntry(null), 5000)
     },
     [removeEntry],
   )
+
+  const handleUndoDelete = useCallback(() => {
+    if (!deletedEntry) return
+    const { entries } = useLibraryStore.getState()
+    const next = [deletedEntry.entry, ...entries].slice(0, 50)
+    useLibraryStore.setState({ entries: next })
+    usePersistenceStore.getState().writeLibrary(next)
+    setDeletedEntry(null)
+    if (undoRef.current !== undefined) clearTimeout(undoRef.current)
+  }, [deletedEntry])
+
+  const handleStartEdit = useCallback(
+    (e: React.MouseEvent, id: string, name: string) => {
+      e.stopPropagation()
+      setEditingId(id)
+      setEditValue(name === "Untitled" ? "" : name)
+    },
+    [],
+  )
+
+  const handleSaveEdit = useCallback(
+    (id: string) => {
+      const trimmed = editValue.trim()
+      updateEntryMeta(id, { name: trimmed || "Untitled" })
+      if (useGameStore.getState().currentLibraryId === id) {
+        useMetaStore.getState().setName(trimmed || "Untitled")
+      }
+      setEditingId(null)
+      setEditValue("")
+    },
+    [editValue, updateEntryMeta],
+  )
+
+  const handlePin = useCallback(
+    (e: React.MouseEvent, id: string) => {
+      e.stopPropagation()
+      togglePin(id)
+    },
+    [togglePin],
+  )
+
+  const handleCycleSort = useCallback(() => {
+    setSortIdx((i) => (i + 1) % SORT_LABELS.length)
+  }, [])
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    const filtered = q
+      ? entries.filter(
+          (e) =>
+            e.data.meta.name.toLowerCase().includes(q) ||
+            e.data.meta.tags.some((t) => t.toLowerCase().includes(q)) ||
+            e.data.meta.notes.toLowerCase().includes(q),
+        )
+      : entries
+
+    const getMoves = (e: (typeof entries)[0]) => e.data.game.fullHistory?.length ?? 0
+    const getRating = (e: (typeof entries)[0]) => e.data.meta.rating ?? 0
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortIdx) {
+        case 0:
+          return new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
+        case 1:
+          return new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime()
+        case 2:
+          return (a.data.meta.name || "").localeCompare(b.data.meta.name || "")
+        case 3:
+          return (b.data.meta.name || "").localeCompare(a.data.meta.name || "")
+        case 4:
+          return getMoves(a) - getMoves(b)
+        case 5:
+          return getMoves(b) - getMoves(a)
+        case 6:
+          return getRating(a) - getRating(b)
+        case 7:
+          return getRating(b) - getRating(a)
+        default:
+          return 0
+      }
+    })
+
+    const pinned = sorted.filter((e) => e.pinned)
+    const unpinned = sorted.filter((e) => !e.pinned)
+    return { pinned, unpinned, total: sorted.length }
+  }, [entries, search, sortIdx])
+
+  const renderEntry = (entry: (typeof entries)[0]) => {
+    const isLoaded = loadedId === entry.id
+    const isEditing = editingId === entry.id
+
+    return (
+      <div
+        key={entry.id}
+        className={`group relative -mx-2 px-2 py-1.5 transition-colors hover:bg-gray-50 ${
+          isLoaded ? "bg-gray-100" : ""
+        }`}
+      >
+        {isEditing ? (
+          <div className="flex items-center gap-1">
+            <input
+              autoFocus
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveEdit(entry.id)
+                if (e.key === "Escape") {
+                  setEditingId(null)
+                  setEditValue("")
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Name..."
+              className="flex-1 bg-transparent font-mono text-[10px] md:text-[11px] outline-none placeholder:text-gray-300 text-black"
+            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleSaveEdit(entry.id)
+              }}
+              className="font-mono text-[9px] uppercase text-gray-400 hover:text-black"
+            >
+              Save
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => handleLoad(entry.id)}
+            className="w-full text-left"
+          >
+            <div className="flex items-start justify-between gap-1">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1">
+                  {entry.pinned && (
+                    <span className="shrink-0 text-[9px]">★</span>
+                  )}
+                  <p className="font-mono text-[10px] md:text-[11px] text-black truncate">
+                    {entry.data.meta.name || "Untitled"}
+                    {isLoaded && (
+                      <span className="ml-1 text-[8px] text-gray-400 font-normal">loaded</span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="font-mono text-[8px] text-gray-400">
+                    {relativeTime(entry.savedAt)}
+                  </span>
+                  <span className="font-mono text-[8px] tabular-nums text-gray-400">
+                    {entry.data.game.fullHistory?.length ?? 0} moves
+                  </span>
+                  {entry.data.meta.rating > 0 && (
+                    <span className="font-mono text-[8px] tabular-nums text-gray-300">
+                      {"★".repeat(Math.min(5, Math.ceil(entry.data.meta.rating / 2)))}
+                    </span>
+                  )}
+                  {entry.data.meta.tags.length > 0 && (
+                    <span className="font-mono text-[8px] text-gray-300 truncate max-w-[80px]">
+                      {entry.data.meta.tags.slice(0, 3).join(", ")}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    e.preventDefault()
+                    handleStartEdit(e, entry.id, entry.data.meta.name)
+                  }}
+                  className="font-mono text-sm opacity-0 group-hover:opacity-100 text-gray-400 hover:text-black transition-all px-0.5"
+                >
+                  ✎
+                </button>
+                <button
+                  onClick={(e) => handlePin(e, entry.id)}
+                  className={`font-mono text-sm transition-all px-0.5 ${
+                    entry.pinned
+                      ? "text-black"
+                      : "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-black"
+                  }`}
+                >
+                  ★
+                </button>
+                <button
+                  onClick={(e) => handleDelete(e, entry.id)}
+                  className="font-mono text-sm opacity-0 group-hover:opacity-100 text-gray-400 hover:text-black transition-all px-0.5"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </button>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="relative flex shrink-0 z-30">
@@ -98,54 +309,63 @@ export default function Library({ open, onToggle }: Props) {
             </span>
           </div>
 
+          <div className="flex items-center gap-1 px-3 pb-1.5">
+            <input
+              ref={searchRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search..."
+              className="flex-1 bg-gray-50 font-mono text-[10px] outline-none placeholder:text-gray-300 text-black px-1.5 py-0.5"
+            />
+            <button
+              onClick={handleCycleSort}
+              className="shrink-0 font-mono text-[8px] uppercase tracking-[0.05em] px-1.5 py-0.5 bg-gray-50 text-gray-400 hover:text-black transition-colors"
+            >
+              {SORT_LABELS[sortIdx]}
+            </button>
+          </div>
+
+          {deletedEntry && (
+            <div className="flex items-center justify-between px-3 py-1 bg-gray-50">
+              <span className="font-mono text-[9px] text-gray-400 truncate">
+                Deleted "{deletedEntry.entry.data.meta.name}"
+              </span>
+              <button
+                onClick={handleUndoDelete}
+                className="font-mono text-[9px] uppercase text-black hover:text-gray-400"
+              >
+                Undo
+              </button>
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto px-3 pb-2">
-            {entries.length === 0 && (
+            {filtered.total === 0 && (
               <p className="py-4 text-center font-mono text-[10px] text-gray-300">
-                No saved games
+                {search ? "No results" : "No saved games"}
               </p>
             )}
 
-            {entries.map((entry) => (
-              <button
-                key={entry.id}
-                onClick={() => handleLoad(entry.id)}
-                className={`group w-full text-left px-2 py-1.5 -mx-2 transition-colors hover:bg-gray-50 ${
-                  loadedId === entry.id ? "bg-gray-100" : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-1">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-[10px] md:text-[11px] text-black truncate">
-                      {entry.data.meta.name || "Untitled"}
-                      {loadedId === entry.id && (
-                        <span className="ml-1 text-[8px] text-gray-400 font-normal">loaded</span>
-                      )}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="font-mono text-[8px] text-gray-400">
-                        {relativeTime(entry.savedAt)}
-                      </span>
-                      <span className="font-mono text-[8px] tabular-nums text-gray-400">
-                        {entry.data.game.fullHistory.length} moves
-                      </span>
-                      {entry.data.meta.rating > 0 && (
-                        <span className="font-mono text-[8px] tabular-nums text-gray-300">
-                          {entry.data.meta.rating > 0
-                            ? "★".repeat(Math.min(5, Math.ceil(entry.data.meta.rating / 2)))
-                            : ""}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={(e) => handleDelete(e, entry.id)}
-                    className="shrink-0 font-mono text-[10px] text-gray-300 opacity-0 group-hover:opacity-100 hover:text-black transition-all"
-                  >
-                    ×
-                  </button>
-                </div>
-              </button>
-            ))}
+            {filtered.pinned.length > 0 && (
+              <div className="mb-2">
+                <span className="font-mono text-[7px] uppercase tracking-[0.15em] text-gray-400 px-0.5">
+                  Pinned
+                </span>
+                {filtered.pinned.map(renderEntry)}
+              </div>
+            )}
+
+            {filtered.unpinned.length > 0 && (
+              <div>
+                {filtered.pinned.length > 0 && (
+                  <span className="font-mono text-[7px] uppercase tracking-[0.15em] text-gray-400 px-0.5">
+                    All
+                  </span>
+                )}
+                {filtered.unpinned.map(renderEntry)}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -154,7 +374,7 @@ export default function Library({ open, onToggle }: Props) {
         onClick={onToggle}
         className="shrink-0 w-5 flex flex-col items-center justify-center hover:bg-gray-50 transition-colors group"
       >
-        <span className="font-mono text-[10px] text-gray-300 group-hover:text-gray-400 select-none leading-none">
+        <span className="font-mono text-sm text-gray-300 group-hover:text-gray-400 select-none leading-none">
           {open ? "◀" : "▶"}
         </span>
       </button>

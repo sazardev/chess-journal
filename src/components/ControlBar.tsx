@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import { toPng } from "html-to-image"
-import { Chess, type Square, type Move } from "chess.js"
+import { Chess, type Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useLibraryStore } from "../stores/useLibraryStore"
@@ -42,8 +42,6 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
   const getPgn = useGameStore((s) => s.getPgn)
   const getFen = useGameStore((s) => s.getFen)
   const makeMove = useGameStore((s) => s.makeMove)
-  const currentLibraryId = useGameStore((s) => s.currentLibraryId)
-  const setCurrentLibraryId = useGameStore((s) => s.setCurrentLibraryId)
 
   const annotationMode = useBoardStore((s) => s.annotationMode)
   const toggleAnnotationMode = useBoardStore((s) => s.toggleAnnotationMode)
@@ -56,6 +54,7 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
   const [exportState, setExportState] = useState<"idle" | "loading" | "error" | "done">("idle")
   const [exportError, setExportError] = useState("")
   const [editing, setEditing] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const sanLine = useMemo(
@@ -148,9 +147,10 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
   }, [reset, buildSaveData])
 
   const handleSaveToLibrary = useCallback(async () => {
-    const id = useGameStore.getState().currentLibraryId
+    const state = useGameStore.getState()
+    const id = state.currentLibraryId
     const data = buildSaveData()
-    const savedId = await useLibraryStore.getState().addEntry(data, id ?? undefined)
+    const savedId = useLibraryStore.getState().addEntry(data, id ?? undefined)
     if (!id) useGameStore.setState({ currentLibraryId: savedId })
   }, [buildSaveData])
 
@@ -217,9 +217,6 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
 
   const totalAnnotations = arrows.length + Object.keys(highlights).length
 
-  const btn =
-    "font-mono text-[9px] md:text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100"
-
   const modeBtn = (mode: "arrow" | "highlight") =>
     `flex-1 font-mono text-[10px] md:text-[9px] uppercase tracking-[0.1em] py-2 md:py-1.5 transition-colors ${
       annotationMode === mode
@@ -228,35 +225,8 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
     }`
 
   return (
-    <div className="flex flex-col px-3 md:px-3 pb-3 gap-2 md:gap-3">
-      <div className="flex flex-wrap items-center gap-1 md:gap-0.5">
-        <button onClick={handleNew} className={btn}>New</button>
-        <button onClick={flipBoard} className={btn}>Flip</button>
-        <button onClick={copyFen} className={btn}>
-          {copied === "FEN" ? "Copied" : "FEN"}
-        </button>
-        <button onClick={copyPgn} className={btn}>
-          {copied === "PGN" ? "Copied" : "PGN"}
-        </button>
-        <button onClick={() => fileInputRef.current?.click()} className={btn}>PGN</button>
-        <button onClick={handleSaveToLibrary} className={btn}>Save</button>
-        <button onClick={() => setEditing((v) => !v)} className={`${btn} ${editing ? "bg-black text-white" : ""}`}>
-          Edit
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pgn"
-          onChange={handleImportPgn}
-          className="hidden"
-        />
-      </div>
-
-      {editing ? (
-        <MetaEditor onSave={handleMetaSave} onClose={() => setEditing(false)} />
-      ) : (
-        <>
-          <div className="flex flex-col gap-1.5 md:gap-2">
+    <div className="flex flex-col px-3 pb-3 gap-2 md:gap-3">
+      <div className="flex flex-col gap-1.5 md:gap-2">
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] md:text-[9px] uppercase tracking-[0.15em] text-gray-400">
             Annotations
@@ -386,8 +356,6 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
           </div>
         </div>
       )}
-        </>
-      )}
 
       <button
         onClick={exportPng}
@@ -406,6 +374,53 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
               ? exportError || "Error"
               : "Export PNG"}
       </button>
+
+      <div>
+        <button
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.1em] text-gray-400 hover:text-black transition-colors py-1"
+        >
+          <span>{advancedOpen ? "▲" : "▼"}</span>
+          Advanced
+        </button>
+
+        {advancedOpen && (
+          <div className="flex flex-wrap items-center gap-1 md:gap-0.5 mt-1.5">
+            <button onClick={handleNew} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
+              New
+            </button>
+            <button onClick={flipBoard} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
+              Flip
+            </button>
+            <button onClick={copyFen} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
+              {copied === "FEN" ? "Copied" : "FEN"}
+            </button>
+            <button onClick={copyPgn} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
+              {copied === "PGN" ? "Copied" : "PGN"}
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
+              PGN
+            </button>
+            <button onClick={handleSaveToLibrary} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
+              Save
+            </button>
+            <button onClick={() => setEditing((v) => !v)} className={`font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors ${editing ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"}`}>
+              Edit
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pgn"
+              onChange={handleImportPgn}
+              className="hidden"
+            />
+          </div>
+        )}
+      </div>
+
+      {editing && (
+        <MetaEditor onSave={handleMetaSave} onClose={() => setEditing(false)} />
+      )}
     </div>
   )
 }

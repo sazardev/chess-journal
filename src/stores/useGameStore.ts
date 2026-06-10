@@ -48,6 +48,7 @@ export interface GameState {
   goToPrevBookmark: () => void
   goToNextBookmark: () => void
   setComment: (index: number, text: string) => void
+  setCurrentLibraryId: (id: string | null) => void
 }
 
 function computeState(game: Chess, historyIndex: number) {
@@ -83,7 +84,7 @@ export const useGameStore = create<GameState>((set, get) => {
     comments: {},
     currentLibraryId: null,
 
-    setCurrentLibraryId: (id) => set({ currentLibraryId: id }),
+    setCurrentLibraryId: (id: string | null) => set({ currentLibraryId: id }),
 
     makeMove: (from, to, promotion) => {
       const { game, fullHistory, historyIndex } = get()
@@ -225,7 +226,7 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     getPgn: () => {
-      const { game, fullHistory, comments } = get()
+      const { fullHistory, comments } = get()
       const g = new Chess()
       for (let i = 0; i < fullHistory.length; i++) {
         const comment = comments[i]

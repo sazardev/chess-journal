@@ -83,7 +83,7 @@ export default function App() {
 
   const moveInputRef = useRef<HTMLInputElement>(null)
   const restoredRef = useRef(false)
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const saveTimerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     configInit()

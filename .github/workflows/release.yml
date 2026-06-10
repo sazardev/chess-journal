@@ -5,13 +5,29 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      bump:
+        description: "Bump version before releasing (none = release the current version)"
+        type: choice
+        required: true
+        default: none
+        options:
+          - none
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  release:
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -20,6 +36,25 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Resolve version (optionally bump, commit & tag)
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.bump }}" ] && [ "${{ inputs.bump }}" != "none" ]; then
+            node scripts/bump-version.mjs "${{ inputs.bump }}"
+            VERSION=$(node -p "require('./package.json').version")
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml CHANGELOG.md
+            git commit -m "chore: release v$VERSION"
+            git tag -a "v$VERSION" -m "Chess Mini v$VERSION"
+            git push origin "HEAD:${GITHUB_REF_NAME}" --follow-tags
+          else
+            VERSION=$(node -p "require('./package.json').version")
+          fi
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -31,24 +66,16 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Build Tauri app
-        run: npx tauri build
-
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+      - name: Build & release (Tauri)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signing keys for the auto-updater (add these as repo secrets).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          name: chess-mini-installer
-          path: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
-
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
-          draft: false
-          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
-          generate_release_notes: true
+          tagName: ${{ steps.version.outputs.tag }}
+          releaseName: "Chess Mini ${{ steps.version.outputs.tag }}"
+          releaseBody: "Download **Chess Mini_${{ steps.version.outputs.version }}_x64-setup.exe** below and run it. Installed copies update themselves automatically."
+          releaseDraft: false
+          prerelease: false

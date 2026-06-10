@@ -1,0 +1,24 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" rx="208" fill="#000000"/>
+  <g fill="#ffffff">
+    <!-- finial -->
+    <circle cx="512" cy="232" r="34"/>
+    <!-- mitre / head (onion shape) -->
+    <path d="M512 268
+             C 612 320, 648 432, 572 512
+             L 452 512
+             C 376 432, 412 320, 512 268 Z"/>
+    <!-- collar -->
+    <rect x="446" y="506" width="132" height="46" rx="14"/>
+    <!-- body (flared) -->
+    <path d="M470 552
+             C 408 632, 372 724, 360 792
+             L 664 792
+             C 652 724, 616 632, 554 552 Z"/>
+    <!-- base -->
+    <rect x="320" y="790" width="384" height="58" rx="29"/>
+  </g>
+  <!-- bishop's slit (diagonal cut on the head) -->
+  <path d="M520 300 L 588 372"
+        stroke="#000000" stroke-width="26" stroke-linecap="round"/>
+</svg>

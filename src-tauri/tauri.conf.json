@@ -35,6 +35,12 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
+    "publisher": "sazardev",
+    "copyright": "© 2026 sazardev",
+    "category": "Education",
+    "shortDescription": "Minimalist chess analyzer & game journal",
+    "longDescription": "Chess Mini is a fast, minimalist desktop app to record, analyze and review your chess games — engine analysis, move-quality marks, annotations, autosave and a searchable library.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -44,9 +50,16 @@
     ],
     "windows": {
       "nsis": {
-        "installMode": "currentUser",
-        "displayLanguageSelector": true
+        "installMode": "currentUser"
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/sazardev/chess-mini/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc3RUExQjE0MjQ0RDdEN0YKUldSL2ZVMGtGQnZxZHcreEpZZ3BWVnh0NVVXMjBnMHd5Nk1HRWtxWlk1TjNUcUsrdFQ2REFxL3IK"
     }
   }
 }

@@ -1,0 +1,25 @@
+# Changelog
+
+All notable changes to Chess Mini are documented here.
+The format is based on [Keep a Changelog](https://keepachangelog.com/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+## [0.1.0]
+
+### Added
+- Continuous autosave — every game with moves lives in the library and updates on each change.
+- Save status indicator and `Ctrl+S` manual save.
+- Favorites (♥) separate from pinned (★), with independent library filters.
+- Settings panel for data management (empty library, clear autosave, erase everything).
+- Engine analysis with a coherent, cleaner heatmap and candidate list.
+- Move-quality marks (!!, !, ?!, ?, ??) in the move history, plus a one-shot whole-game analyzer.
+- Move-input autocomplete with legal-move suggestions and live eval hints.
+- Advanced panel: editable metadata (rating, tags, notes) and export/import (FEN, PGN, JSON).
+- Responsive layout for desktop, tablet and small screens; keyboard shortcuts overlay (`?`).
+- Version display in the title bar, in-app changelog, and automatic update checking.
+
+### Changed
+- Unified the New / Save flows into a single coherent model.
+- Refreshed the app icon (bishop) and overall visual polish.

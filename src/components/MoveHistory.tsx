@@ -1,11 +1,10 @@
 import { useRef, useEffect, useState, useMemo } from "react"
 import { useGameStore } from "../stores/useGameStore"
 import { useAnalysisStore, posKey } from "../stores/useAnalysisStore"
-import { useConfigStore } from "../stores/useConfigStore"
 import { classifyMove, nagColor, type Nag } from "../lib/moveQuality"
 import OpeningChip from "./OpeningChip"
 
-export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }) {
+export default function MoveHistory() {
   const history = useGameStore((s) => s.fullHistory)
   const historyIndex = useGameStore((s) => s.historyIndex)
   const goToMove = useGameStore((s) => s.goToMove)
@@ -23,16 +22,13 @@ export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }
   const setComment = useGameStore((s) => s.setComment)
 
   const markMode = useAnalysisStore((s) => s.markMode)
-  const toggleMark = useAnalysisStore((s) => s.toggleMark)
   const byFen = useAnalysisStore((s) => s.byFen)
-
-  const openingAnalyzer = useConfigStore((s) => s.openingAnalyzer)
-  const setOpeningAnalyzer = useConfigStore((s) => s.setOpeningAnalyzer)
 
   const [editingComment, setEditingComment] = useState<number | null>(null)
   const [commentValue, setCommentValue] = useState("")
 
   const listRef = useRef<HTMLDivElement>(null)
+  const activeRef = useRef<HTMLButtonElement>(null)
 
   // Move-quality marks (!!, !, ?!, ?, ??) computed from cached evals.
   const marks = useMemo(() => {
@@ -55,11 +51,10 @@ export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }
     return out
   }, [markMode, history, byFen])
 
+  // Keep the current move in view — works for long games and during playback.
   useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight
-    }
-  }, [history.length])
+    activeRef.current?.scrollIntoView({ block: "nearest" })
+  }, [historyIndex, history.length])
 
   const pairs: { white?: (typeof history)[0]; black?: (typeof history)[0] }[] = []
   for (let i = 0; i < history.length; i += 2) {
@@ -85,35 +80,9 @@ export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }
   return (
     <div className="flex flex-col max-h-40 md:h-full md:max-h-none">
       <div className="flex items-center justify-between px-3 py-2">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[9px] md:text-[10px] uppercase tracking-[0.15em] text-gray-400">
-            History
-          </span>
-          {(engineOn || markMode) && (
-            <button
-              onClick={toggleMark}
-              title="Mark move quality from analysis (!? ?!)"
-              className={`font-mono text-[8px] uppercase tracking-[0.1em] px-1.5 py-0.5 transition-colors ${
-                markMode
-                  ? "bg-black text-white"
-                  : "text-gray-400 hover:text-black hover:bg-gray-100"
-              }`}
-            >
-              Marks
-            </button>
-          )}
-          <button
-            onClick={() => setOpeningAnalyzer(!openingAnalyzer)}
-            title="Detect the opening as you play"
-            className={`font-mono text-[8px] uppercase tracking-[0.1em] px-1.5 py-0.5 transition-colors ${
-              openingAnalyzer
-                ? "bg-black text-white"
-                : "text-gray-400 hover:text-black hover:bg-gray-100"
-            }`}
-          >
-            Opening
-          </button>
-        </div>
+        <span className="font-mono text-[9px] md:text-[10px] uppercase tracking-[0.15em] text-gray-400">
+          History
+        </span>
         <div className="flex items-center gap-0.5 md:gap-1">
           <button
             onClick={goToStart}
@@ -223,6 +192,7 @@ export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }
                 </button>
 
                 <button
+                  ref={historyIndex === whiteIdx + 1 ? activeRef : undefined}
                   onClick={() => goToMove(whiteIdx + 1)}
                   onContextMenu={(e) => {
                     e.preventDefault()
@@ -264,6 +234,7 @@ export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }
                     </button>
 
                     <button
+                      ref={historyIndex === blackIdx + 1 ? activeRef : undefined}
                       onClick={() => goToMove(blackIdx + 1)}
                       onContextMenu={(e) => {
                         e.preventDefault()

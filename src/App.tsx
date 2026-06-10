@@ -209,7 +209,7 @@ export default function App() {
           {/* Desktop side panel */}
           <div className="hidden min-h-0 shrink-0 flex-col border-l border-gray-100 md:flex md:w-56 lg:w-64">
             <div className="min-h-0 flex-1 overflow-hidden">
-              <MoveHistory engineOn={engine.enabled} />
+              <MoveHistory />
             </div>
             <div className="shrink-0 border-t border-gray-100">
               <ControlBar engine={engine} analyzer={analyzer} />
@@ -228,7 +228,7 @@ export default function App() {
             </div>
             {panelTab === "moves" ? (
               <div className="min-h-0 flex-1 overflow-hidden">
-                <MoveHistory engineOn={engine.enabled} />
+                <MoveHistory />
               </div>
             ) : (
               <div className="min-h-0 flex-1 overflow-y-auto">

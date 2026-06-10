@@ -42,6 +42,11 @@ export function useAutosave(active: boolean) {
         const flash = pendingFlash.current
         pendingFlash.current = false
         timer.current = undefined
+        // Previewing a classic — don't persist until the user actually edits.
+        if (useGameStore.getState().transient) {
+          useSaveStore.getState().markIdle()
+          return
+        }
         commitToLibrary()
         try {
           await usePersistenceStore.getState().writeAutosave(buildSaveData())

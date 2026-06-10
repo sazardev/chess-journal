@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Classics — a bundled library of legendary games (Opera, Immortal, Evergreen, Game of the Century, Légal's Mate). New "Classics" tab in the library; loading one is a preview that never clutters your own games.
+
+### Changed
+- Decluttered the panel: only Analyze stays out front; annotations (arrow/mark), Export PNG and the opening-detection toggle moved into Advanced (detection stays on by default). History header is clean.
+- Long games: the current move now scrolls into view as you navigate or play.
+
 ## [0.1.2] - 2026-06-10
 
 ### Added

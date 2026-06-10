@@ -7,6 +7,7 @@ import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { newGame } from "../lib/session"
 import OpeningStats from "./OpeningStats"
+import { CLASSICS, type ClassicGame } from "../data/classics"
 
 const SORT_LABELS = ["Newest", "Oldest", "A-Z", "Z-A", "Moves ↑", "Moves ↓", "Rating ↑", "Rating ↓"] as const
 
@@ -38,6 +39,7 @@ export default function Library({ open, onToggle }: Props) {
   const [sortIdx, setSortIdx] = useState(0)
   const [filter, setFilter] = useState<"all" | "pinned" | "favorite">("all")
   const [statsOpen, setStatsOpen] = useState(false)
+  const [tab, setTab] = useState<"mine" | "classics">("mine")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [deletedEntry, setDeletedEntry] = useState<{ id: string; entry: ReturnType<typeof useLibraryStore.getState>["entries"][0] } | null>(null)
@@ -156,6 +158,24 @@ export default function Library({ open, onToggle }: Props) {
 
   const handleNewClick = useCallback(() => {
     newGame()
+  }, [])
+
+  const handleLoadClassic = useCallback((g: ClassicGame) => {
+    // loadClassic sets the working game as transient (autosave skips it).
+    useGameStore.getState().loadClassic(g.moves)
+    useMetaStore.getState().load({
+      name: `${g.white} — ${g.black}`,
+      rating: 0,
+      tags: g.tags,
+      notes: `${g.event}, ${g.year}`,
+      result: g.result,
+      playerColor: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+    useBoardStore.getState().clearAll()
+    setLoadedId(g.id)
+    setTimeout(() => setLoadedId(null), 1200)
   }, [])
 
   const filtered = useMemo(() => {
@@ -377,7 +397,23 @@ export default function Library({ open, onToggle }: Props) {
             </div>
           </div>
 
-          <div className="flex items-center gap-1 px-3 pb-1.5">
+          <div className="flex border-y border-gray-100">
+            {(["mine", "classics"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`flex-1 font-mono text-[8px] uppercase tracking-[0.12em] py-1.5 transition-colors ${
+                  tab === t ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
+                }`}
+              >
+                {t === "mine" ? "My games" : "Classics"}
+              </button>
+            ))}
+          </div>
+
+          {tab === "mine" && (
+          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex items-center gap-1 px-3 pb-1.5 pt-1.5">
             <input
               ref={searchRef}
               type="text"
@@ -461,6 +497,45 @@ export default function Library({ open, onToggle }: Props) {
               </div>
             )}
           </div>
+          </div>
+          )}
+
+          {tab === "classics" && (
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-1.5">
+              {CLASSICS.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => handleLoadClassic(g)}
+                  className={`group -mx-2 block w-full px-2 py-1.5 text-left transition-colors hover:bg-gray-50 ${
+                    loadedId === g.id ? "bg-gray-100" : ""
+                  }`}
+                >
+                  <p className="truncate font-mono text-[10px] md:text-[11px] text-black">
+                    {g.white} — {g.black}
+                    {loadedId === g.id && (
+                      <span className="ml-1 text-[8px] font-normal text-gray-400">loaded</span>
+                    )}
+                  </p>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <span className="font-mono text-[8px] text-gray-400">
+                      {g.event}, {g.year}
+                    </span>
+                    <span className="font-mono text-[8px] tabular-nums text-gray-300">{g.result}</span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap gap-1">
+                    {g.tags.map((t) => (
+                      <span
+                        key={t}
+                        className="font-mono text-[7px] uppercase tracking-[0.1em] text-gray-300"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

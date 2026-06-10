@@ -5,6 +5,7 @@ import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
+import { useConfigStore } from "../stores/useConfigStore"
 import { buildSaveData } from "../lib/session"
 import { candidateColor } from "../lib/heatmap"
 import { saveTextFile, fileStem } from "../lib/exporters"
@@ -47,6 +48,9 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
 
   const markMode = useAnalysisStore((s) => s.markMode)
   const toggleMark = useAnalysisStore((s) => s.toggleMark)
+
+  const openingAnalyzer = useConfigStore((s) => s.openingAnalyzer)
+  const setOpeningAnalyzer = useConfigStore((s) => s.setOpeningAnalyzer)
 
   const fen = useGameStore((s) => s.fen)
   const moveCount = useGameStore((s) => s.fullHistory.length)
@@ -207,53 +211,6 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
 
   return (
     <div className="flex flex-col px-3 pb-3 gap-2 md:gap-3">
-      <div className="flex flex-col gap-1.5 md:gap-2">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] md:text-[9px] uppercase tracking-[0.15em] text-gray-400">
-            Annotations
-          </span>
-          {totalAnnotations > 0 && (
-            <span className="font-mono text-[10px] md:text-[9px] tabular-nums text-gray-300">
-              {totalAnnotations}
-            </span>
-          )}
-        </div>
-
-        <div className="flex gap-1.5 md:gap-1">
-          <button onClick={() => toggleAnnotationMode("arrow")} className={modeBtn("arrow")}>
-            Arrow
-          </button>
-          <button onClick={() => toggleAnnotationMode("highlight")} className={modeBtn("highlight")}>
-            Mark
-          </button>
-        </div>
-
-        <p className="font-mono text-[9px] md:text-[8px] text-gray-300">
-          {annotationMode === "arrow"
-            ? "Click two squares to draw"
-            : annotationMode === "highlight"
-              ? "Click square to toggle mark"
-              : "Select mode to annotate"}
-        </p>
-
-        {totalAnnotations > 0 && (
-          <div className="flex gap-1.5 md:gap-1">
-            <button
-              onClick={undoLastAnnotation}
-              className="flex-1 font-mono text-[10px] md:text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
-            >
-              Undo
-            </button>
-            <button
-              onClick={clearAll}
-              className="flex-1 font-mono text-[10px] md:text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
-            >
-              Clear
-            </button>
-          </div>
-        )}
-      </div>
-
       <button
         onClick={toggleEngine}
         className={`font-mono text-[10px] md:text-[9px] uppercase tracking-[0.15em] py-2 md:py-1.5 transition-colors ${
@@ -289,7 +246,7 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
         </div>
       )}
 
-      {moveCount > 0 && (
+      {engineOn && moveCount > 0 && (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
@@ -397,24 +354,6 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
         </div>
       )}
 
-      <button
-        onClick={exportPng}
-        disabled={exportState === "loading"}
-        className={`font-mono text-[10px] md:text-[9px] uppercase tracking-[0.15em] py-2 md:py-1.5 transition-colors disabled:opacity-30 ${
-          exportState === "error"
-            ? "text-gray-400"
-            : "text-gray-400 hover:text-black hover:bg-gray-100"
-        }`}
-      >
-        {exportState === "loading"
-          ? "..."
-          : exportState === "done"
-            ? "Saved"
-            : exportState === "error"
-              ? exportError || "Error"
-              : "Export PNG"}
-      </button>
-
       <div>
         <button
           onClick={() => setAdvancedOpen((v) => !v)}
@@ -428,6 +367,60 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
           <div className="mt-2 flex flex-col gap-3 border-t border-gray-100 pt-3">
             {/* Game metadata — rating, tags, notes (auto-saved) */}
             <MetaEditor embedded />
+
+            {/* Detection */}
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+                Opening detection
+              </span>
+              <button
+                onClick={() => setOpeningAnalyzer(!openingAnalyzer)}
+                className={`font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1 transition-colors ${
+                  openingAnalyzer
+                    ? "bg-black text-white"
+                    : "text-gray-400 hover:text-black hover:bg-gray-100"
+                }`}
+              >
+                {openingAnalyzer ? "On" : "Off"}
+              </button>
+            </div>
+
+            {/* Annotate */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+                  Annotate
+                </span>
+                {totalAnnotations > 0 && (
+                  <span className="font-mono text-[8px] tabular-nums text-gray-300">{totalAnnotations}</span>
+                )}
+              </div>
+              <div className="flex gap-1.5 md:gap-1">
+                <button onClick={() => toggleAnnotationMode("arrow")} className={modeBtn("arrow")}>
+                  Arrow
+                </button>
+                <button onClick={() => toggleAnnotationMode("highlight")} className={modeBtn("highlight")}>
+                  Mark
+                </button>
+              </div>
+              <p className="font-mono text-[8px] text-gray-300">
+                {annotationMode === "arrow"
+                  ? "Click two squares to draw"
+                  : annotationMode === "highlight"
+                    ? "Click a square to toggle a mark"
+                    : "Pick a mode to annotate"}
+              </p>
+              {totalAnnotations > 0 && (
+                <div className="flex gap-1.5 md:gap-1">
+                  <button onClick={undoLastAnnotation} className={`flex-1 ${advBtn}`}>
+                    Undo
+                  </button>
+                  <button onClick={clearAll} className={`flex-1 ${advBtn}`}>
+                    Clear
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Export / import */}
             <div className="flex flex-col gap-1.5">
@@ -449,6 +442,15 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
                 </button>
                 <button onClick={() => fileInputRef.current?.click()} className={advBtn}>
                   Import PGN
+                </button>
+                <button onClick={exportPng} disabled={exportState === "loading"} className={`${advBtn} disabled:opacity-30`}>
+                  {exportState === "loading"
+                    ? "..."
+                    : exportState === "done"
+                      ? "PNG saved"
+                      : exportState === "error"
+                        ? exportError || "PNG error"
+                        : "Export PNG"}
                 </button>
                 <button onClick={flipBoard} className={advBtn}>
                   Flip board

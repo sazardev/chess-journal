@@ -17,6 +17,8 @@ export interface GameState {
   bookmarks: number[]
   comments: Record<number, string>
   currentLibraryId: string | null
+  /** True while previewing a classic — autosave skips it until you edit. */
+  transient: boolean
 
   makeMove: (from: Square, to: Square, promotion?: string) => boolean
   makeMoveSan: (san: string) => boolean
@@ -30,6 +32,7 @@ export interface GameState {
   reset: () => void
   loadFen: (fen: string) => void
   loadPgn: (pgn: string) => void
+  loadClassic: (moves: string) => void
   restoreState: (state: {
     fullHistory: Move[]
     historyIndex: number
@@ -83,6 +86,7 @@ export const useGameStore = create<GameState>((set, get) => {
     bookmarks: [],
     comments: {},
     currentLibraryId: null,
+    transient: false,
 
     setCurrentLibraryId: (id: string | null) => set({ currentLibraryId: id }),
 
@@ -105,7 +109,7 @@ export const useGameStore = create<GameState>((set, get) => {
         if (!result) return false
 
         const next = [...fullHistory.slice(0, historyIndex), result]
-        set({ fullHistory: next, ...computeState(game, historyIndex + 1) })
+        set({ fullHistory: next, ...computeState(game, historyIndex + 1), transient: false })
         return true
       } catch {
         return false
@@ -121,7 +125,7 @@ export const useGameStore = create<GameState>((set, get) => {
         if (!result) return false
 
         const next = [...fullHistory.slice(0, historyIndex), result]
-        set({ fullHistory: next, ...computeState(game, historyIndex + 1) })
+        set({ fullHistory: next, ...computeState(game, historyIndex + 1), transient: false })
         return true
       } catch {
         return false
@@ -180,6 +184,7 @@ export const useGameStore = create<GameState>((set, get) => {
         bookmarks: [],
         comments: {},
         currentLibraryId: null,
+        transient: false,
       })
     },
 
@@ -192,6 +197,7 @@ export const useGameStore = create<GameState>((set, get) => {
         bookmarks: [],
         comments: {},
         currentLibraryId: null,
+        transient: false,
       })
     },
 
@@ -206,6 +212,32 @@ export const useGameStore = create<GameState>((set, get) => {
         bookmarks: [],
         comments: {},
         currentLibraryId: null,
+        transient: false,
+      })
+    },
+
+    loadClassic: (moves) => {
+      const tmp = new Chess()
+      const sans = moves.replace(/\d+\.(\.\.)?/g, " ").trim().split(/\s+/).filter(Boolean)
+      for (const san of sans) {
+        try {
+          tmp.move(san)
+        } catch {
+          break
+        }
+      }
+      const fullHistory = tmp.history({ verbose: true })
+      const g = new Chess() // start at move 0 so the game can be replayed
+      set({
+        game: g,
+        fullHistory,
+        ...computeState(g, 0),
+        orientation: "white",
+        isPlaying: false,
+        bookmarks: [],
+        comments: {},
+        currentLibraryId: null,
+        transient: true,
       })
     },
 
@@ -222,6 +254,7 @@ export const useGameStore = create<GameState>((set, get) => {
         isPlaying: false,
         playSpeed: state.playSpeed,
         currentLibraryId: state.currentLibraryId ?? null,
+        transient: false,
       })
     },
 

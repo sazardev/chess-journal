@@ -114,6 +114,24 @@ Either writes `src/data/classics-modern.json`. Commit it and the next release sh
 the games. Validate hand-authored games in `classics.ts` with
 `node scripts/validate-classics.mjs`.
 
+## Android (APK)
+
+Chess Mini also builds for Android (Tauri mobile). The UI is already responsive,
+and desktop-only plugins (auto-update, relaunch) are gated off mobile.
+
+- **Build an installable APK:** **Actions → Android APK → Run workflow**. It sets up
+  the Android SDK/NDK, runs `tauri android init` + `tauri android build --apk --debug`
+  (arm64, debug-signed so it installs without a keystore) and uploads the APK as an
+  artifact. Download it and sideload onto your phone.
+- **Locally** (needs Android Studio / SDK + NDK, `NDK_HOME` set):
+  ```bash
+  npm run tauri android init
+  npm run tauri android dev      # run on a device/emulator
+  npm run tauri android build --apk --debug
+  ```
+- A Play Store **release** APK/AAB needs a signing keystore (set `tauri.conf.json`
+  → `bundle.android.signing` or sign the AAB) — out of scope for the debug build.
+
 ## Regenerate the app icon
 
 The icon source is `app-icon.svg` (a bishop). To regenerate every size:

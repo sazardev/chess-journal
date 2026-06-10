@@ -18,8 +18,6 @@
     "fs:allow-write",
     "fs:allow-exists",
     "fs:scope-download-recursive",
-    "store:default",
-    "updater:default",
-    "process:default"
+    "store:default"
   ]
 }

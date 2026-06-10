@@ -1,16 +1,23 @@
 name: Release
 
 on:
+  # Every push to master that touches app code ships a new patch release.
   push:
-    tags:
-      - "v*"
+    branches: [master]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".gitignore"
+      - ".github/**"
+      - "app-icon.svg"
+  # Manual run lets you pick the bump (none / patch / minor / major).
   workflow_dispatch:
     inputs:
       bump:
-        description: "Bump version before releasing (none = release the current version)"
+        description: "Version bump"
         type: choice
         required: true
-        default: none
+        default: patch
         options:
           - none
           - patch
@@ -20,8 +27,18 @@ on:
 permissions:
   contents: write
 
+# Never run two releases at once.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
+    # Skip the bot's own release commit and any commit tagged [skip release].
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      ( !startsWith(github.event.head_commit.message, 'chore: release') &&
+        !contains(github.event.head_commit.message, '[skip release]') )
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,22 +54,29 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Resolve version (optionally bump, commit & tag)
+      - name: Resolve version (bump, commit & tag)
         id: version
         shell: bash
         run: |
-          if [ -n "${{ inputs.bump }}" ] && [ "${{ inputs.bump }}" != "none" ]; then
-            node scripts/bump-version.mjs "${{ inputs.bump }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUMP="${{ inputs.bump }}"
+          else
+            BUMP="patch"
+          fi
+
+          if [ "$BUMP" != "none" ]; then
+            node scripts/bump-version.mjs "$BUMP"
             VERSION=$(node -p "require('./package.json').version")
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml CHANGELOG.md
-            git commit -m "chore: release v$VERSION"
+            git commit -m "chore: release v$VERSION [skip release]"
             git tag -a "v$VERSION" -m "Chess Mini v$VERSION"
             git push origin "HEAD:${GITHUB_REF_NAME}" --follow-tags
           else
             VERSION=$(node -p "require('./package.json').version")
           fi
+
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
@@ -70,7 +94,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Signing keys for the auto-updater (add these as repo secrets).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:

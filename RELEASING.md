@@ -43,24 +43,25 @@ Get-Content .\.tauri\chess-mini.key -Raw
 
 ## Cut a release
 
-### Option A — from GitHub (recommended)
-**Actions → Release → Run workflow**, pick a version bump (`patch` / `minor` / `major`),
-and run. The workflow bumps the version everywhere, updates `CHANGELOG.md`, commits,
-tags `vX.Y.Z`, builds the installer, signs it, and publishes the GitHub Release with
-the installer + `latest.json` (the updater manifest).
+### Automatic (default) — just push to `master`
+Every push to `master` that touches app code **auto-releases a new patch version**:
+the workflow bumps `0.1.x → 0.1.(x+1)`, updates `CHANGELOG.md`, commits, tags, builds,
+signs, and publishes the GitHub Release with the installer + `latest.json`.
 
-### Option B — from your machine
-```powershell
-node scripts/bump-version.mjs patch     # or minor / major / an explicit 1.2.3
-git add -A
-git commit -m "chore: release v$(node -p "require('./package.json').version")"
-git tag "v$(node -p "require('./package.json').version")"
-git push --follow-tags
-```
-Pushing the `v*` tag triggers the same Release workflow.
+Considerations baked in so it stays clean:
+- **Docs/CI-only pushes don't release** — changes limited to `**.md`, `LICENSE`,
+  `.gitignore`, `.github/**` or `app-icon.svg` are ignored.
+- **No loops** — the bot's `chore: release …` commit is skipped (and is pushed with
+  `GITHUB_TOKEN`, which never re-triggers workflows).
+- **Escape hatch** — put `[skip release]` anywhere in the commit message to skip.
+- **Serialized** — a `concurrency` group ensures only one release runs at a time.
 
-Version is kept in sync across `package.json`, `src-tauri/tauri.conf.json` and
-`src-tauri/Cargo.toml` by `scripts/bump-version.mjs`.
+### Manual — pick the bump
+**Actions → Release → Run workflow**, choose `none` / `patch` / `minor` / `major`.
+Use `minor` / `major` for bigger releases, or `none` to re-release the current version.
+
+Version is kept in sync across `package.json`, `src-tauri/tauri.conf.json`,
+`src-tauri/Cargo.toml` and `CHANGELOG.md` by `scripts/bump-version.mjs`.
 
 ---
 

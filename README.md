@@ -10,6 +10,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/sazardev/chess-mini/release.yml?style=flat-square&label=build)](https://github.com/sazardev/chess-mini/actions/workflows/release.yml)
 [![Downloads](https://img.shields.io/github/downloads/sazardev/chess-mini/total?style=flat-square)](https://github.com/sazardev/chess-mini/releases)
 ![Platform](https://img.shields.io/badge/platform-Windows-black?style=flat-square)
+[![License](https://img.shields.io/github/license/sazardev/chess-mini?style=flat-square)](LICENSE)
 
 ### [⬇ Download the latest installer](https://github.com/sazardev/chess-mini/releases/latest)
 
@@ -65,10 +66,12 @@ npm run lint
 ## Building & releasing
 
 Releases are produced by the **Release** GitHub Action (Windows NSIS installer +
-signed auto-update manifest). To cut one: **Actions → Release → Run workflow** and
-pick a version bump. See [`RELEASING.md`](RELEASING.md) for the full process and the
-one-time signing-key setup.
+signed auto-update manifest). **Every push to `master` that touches app code
+auto-publishes a new patch release** — docs/CI-only changes are skipped, and
+`[skip release]` in a commit message opts out. For a bigger bump, run **Actions →
+Release → Run workflow** and pick `minor` / `major`. See [`RELEASING.md`](RELEASING.md)
+for the full process and the one-time signing-key setup.
 
 ## License
 
-Not yet specified.
+[MIT](LICENSE) © 2026 sazardev

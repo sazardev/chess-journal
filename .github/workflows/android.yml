@@ -55,9 +55,21 @@ jobs:
       - name: Build APK
         run: npx tauri android build --apk --debug --target aarch64
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: chess-mini-android-apk
           path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
+
+      - name: Attach APK to the latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK=$(find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" | head -1)
+          VERSION=$(node -p "require('./package.json').version")
+          cp "$APK" "Chess-Mini_${VERSION}_android-arm64.apk"
+          TAG=$(gh release view --json tagName -q .tagName)
+          gh release upload "$TAG" "Chess-Mini_${VERSION}_android-arm64.apk" --clobber
+          echo "Attached APK to release $TAG"
+

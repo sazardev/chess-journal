@@ -38,25 +38,23 @@ export default function EvalBar({ score, mate, height }: EvalBarProps) {
         className="absolute left-0 right-0 bg-black transition-all duration-150 ease-linear"
         style={{ top: barY + (height - barH), height: barH }}
       />
-      {score !== 0 && (
-        <div
-          className="absolute left-0 right-0 flex items-center justify-center"
-          style={{ top: 0, height }}
+      <div
+        className="absolute left-0 right-0 flex items-center justify-center"
+        style={{ top: 0, height }}
+      >
+        <span
+          className={`font-mono text-[7px] tabular-nums leading-none ${
+            mate !== null ? "text-white" : score >= 0 ? "text-gray-400" : "text-white"
+          }`}
+          style={{
+            writingMode: "vertical-rl",
+            textOrientation: "mixed",
+            userSelect: "none",
+          }}
         >
-          <span
-            className={`font-mono text-[7px] tabular-nums leading-none ${
-              score > 0 ? "text-gray-400" : "text-white"
-            }`}
-            style={{
-              writingMode: "vertical-rl",
-              textOrientation: "mixed",
-              userSelect: "none",
-            }}
-          >
-            {label}
-          </span>
-        </div>
-      )}
+          {label}
+        </span>
+      </div>
     </div>
   )
 }

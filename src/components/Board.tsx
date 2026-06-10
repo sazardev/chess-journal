@@ -4,6 +4,7 @@ import type { Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import EvalBar from "./EvalBar"
+import { computeHeatmap } from "../lib/heatmap"
 import type { useEngine } from "../hooks/useEngine"
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"]
@@ -61,14 +62,24 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
   const filesDisplay = orientation === "white" ? FILES : [...FILES].reverse()
   const ranksDisplay = orientation === "white" ? RANKS : [...RANKS].reverse()
 
-  const boardArrows = useMemo(
+  const heat = useMemo(
     () =>
-      arrows.map((a) => ({
+      visualMode && candidates.length > 0
+        ? computeHeatmap(candidates)
+        : { squareStyles: {}, arrows: [] },
+    [visualMode, candidates],
+  )
+
+  const boardArrows = useMemo(
+    () => [
+      ...arrows.map((a) => ({
         startSquare: a.from,
         endSquare: a.to,
         color: a.color,
       })),
-    [arrows],
+      ...heat.arrows,
+    ],
+    [arrows, heat],
   )
 
   const onPieceDrop = useCallback(
@@ -114,6 +125,11 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
   const squareStyles = useMemo(() => {
     const styles: Record<string, React.CSSProperties> = {}
 
+    // Heatmap underlay (analyzer) — user marks and selection paint over it.
+    for (const [square, style] of Object.entries(heat.squareStyles)) {
+      styles[square] = { ...style }
+    }
+
     for (const [square, color] of Object.entries(highlights)) {
       styles[square] = {
         backgroundColor: `${color}33`,
@@ -127,38 +143,8 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
       }
     }
 
-    if (visualMode && candidates.length > 0) {
-      const maxScore = Math.max(...candidates.map((c) => Math.abs(c.score)), 50)
-      for (const c of candidates) {
-        const to = c.uci.slice(2, 4)
-        if (to.length < 2) continue
-
-        const abs = Math.abs(c.score)
-        const alpha = Math.min(0.55, Math.max(0.1, (abs / maxScore) * 0.45))
-
-        if (c.mate !== null) {
-          styles[to] = {
-            ...styles[to],
-            backgroundColor: c.mate > 0
-              ? `rgba(34, 197, 94, ${alpha})`
-              : `rgba(239, 68, 68, ${alpha})`,
-          }
-        } else if (c.score > 20) {
-          styles[to] = {
-            ...styles[to],
-            backgroundColor: `rgba(34, 197, 94, ${alpha})`,
-          }
-        } else if (c.score < -20) {
-          styles[to] = {
-            ...styles[to],
-            backgroundColor: `rgba(239, 68, 68, ${alpha})`,
-          }
-        }
-      }
-    }
-
     return styles
-  }, [highlights, selectedSquare, visualMode, candidates])
+  }, [highlights, selectedSquare, heat])
 
   const options: ChessboardOptions = {
     id: "chess-mini",

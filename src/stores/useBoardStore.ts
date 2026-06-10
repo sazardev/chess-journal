@@ -80,7 +80,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   highlightSquare: (square, color) => {
     const { highlights, annotationHistory } = get()
     if (highlights[square]) {
-      const { [square]: _, ...rest } = highlights
+      const rest = { ...highlights }
+      delete rest[square]
       set({ highlights: rest })
     } else {
       set({
@@ -109,7 +110,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         annotationHistory: rest,
       })
     } else {
-      const { [last.square]: _, ...remaining } = highlights
+      const remaining = { ...highlights }
+      delete remaining[last.square]
       set({
         highlights: remaining,
         annotationHistory: rest,

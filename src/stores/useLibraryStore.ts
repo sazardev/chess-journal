@@ -6,6 +6,7 @@ export interface LibraryEntry {
   id: string
   data: SaveData
   pinned: boolean
+  favorite: boolean
   savedAt: string
 }
 
@@ -18,7 +19,9 @@ interface LibraryState {
   addEntry: (data: SaveData, id?: string) => Promise<string>
   removeEntry: (id: string) => Promise<void>
   togglePin: (id: string) => Promise<void>
+  toggleFavorite: (id: string) => Promise<void>
   updateEntryMeta: (id: string, meta: Partial<SaveData["meta"]>) => Promise<void>
+  clear: () => Promise<void>
   loadFromStorage: () => Promise<void>
 }
 
@@ -40,6 +43,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         meta: { ...data.meta, updatedAt: new Date().toISOString() },
       },
       pinned: existing?.pinned ?? false,
+      favorite: existing?.favorite ?? false,
       savedAt: new Date().toISOString(),
     }
 
@@ -68,6 +72,14 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     await persist(next)
   },
 
+  toggleFavorite: async (id) => {
+    const next = get().entries.map((e) =>
+      e.id === id ? { ...e, favorite: !e.favorite } : e,
+    )
+    set({ entries: next })
+    await persist(next)
+  },
+
   updateEntryMeta: async (id, meta) => {
     const next = get().entries.map((e) =>
       e.id === id
@@ -84,13 +96,19 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     await persist(next)
   },
 
+  clear: async () => {
+    set({ entries: [] })
+    await persist([])
+  },
+
   loadFromStorage: async () => {
     const store = usePersistenceStore.getState()
     if (!store.ready) return
     const raw = await store.readLibrary()
     const entries = raw.map((e) => ({
       ...e,
-      pinned: e.pinned ?? false,
+      pinned: (e as { pinned?: boolean }).pinned ?? false,
+      favorite: (e as { favorite?: boolean }).favorite ?? false,
     }))
     set({ entries })
   },

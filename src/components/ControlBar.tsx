@@ -3,10 +3,13 @@ import { toPng } from "html-to-image"
 import { Chess, type Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
-import { useLibraryStore } from "../stores/useLibraryStore"
 import { useMetaStore } from "../stores/useMetaStore"
+import { useAnalysisStore } from "../stores/useAnalysisStore"
+import { buildSaveData } from "../lib/session"
+import { candidateColor } from "../lib/heatmap"
+import { saveTextFile, fileStem } from "../lib/exporters"
 import type { useEngine } from "../hooks/useEngine"
-import type { SaveData } from "../types/save"
+import type { useGameAnalyzer } from "../hooks/useGameAnalyzer"
 import MetaEditor from "./MetaEditor"
 
 function uciToSanList(fen: string, uciMoves: string[]): string[] {
@@ -24,7 +27,12 @@ function uciToSanList(fen: string, uciMoves: string[]): string[] {
   })
 }
 
-export default function ControlBar({ engine }: { engine: ReturnType<typeof useEngine> }) {
+interface ControlBarProps {
+  engine: ReturnType<typeof useEngine>
+  analyzer: ReturnType<typeof useGameAnalyzer>
+}
+
+export default function ControlBar({ engine, analyzer }: ControlBarProps) {
   const {
     eval_,
     enabled: engineOn,
@@ -35,8 +43,13 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
     candidates,
   } = engine
 
+  const { analyzing, done, total, run: runAnalysis, cancel: cancelAnalysis } = analyzer
+
+  const markMode = useAnalysisStore((s) => s.markMode)
+  const toggleMark = useAnalysisStore((s) => s.toggleMark)
+
   const fen = useGameStore((s) => s.fen)
-  const reset = useGameStore((s) => s.reset)
+  const moveCount = useGameStore((s) => s.fullHistory.length)
   const flipBoard = useGameStore((s) => s.flipBoard)
   const loadPgn = useGameStore((s) => s.loadPgn)
   const getPgn = useGameStore((s) => s.getPgn)
@@ -53,9 +66,10 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
   const [copied, setCopied] = useState("")
   const [exportState, setExportState] = useState<"idle" | "loading" | "error" | "done">("idle")
   const [exportError, setExportError] = useState("")
-  const [editing, setEditing] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const name = useMetaStore((s) => s.name)
 
   const sanLine = useMemo(
     () => (eval_.bestLine.length > 0 ? uciToSanList(fen, eval_.bestLine) : []),
@@ -94,6 +108,22 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
     setTimeout(() => setCopied(""), 1500)
   }, [getPgn])
 
+  const flash = useCallback((label: string) => {
+    setCopied(label)
+    setTimeout(() => setCopied(""), 1500)
+  }, [])
+
+  const exportPgnFile = useCallback(async () => {
+    const ok = await saveTextFile(`${fileStem(name)}.pgn`, ["pgn"], "PGN", "application/x-chess-pgn", getPgn())
+    if (ok) flash("PGN saved")
+  }, [name, getPgn, flash])
+
+  const exportJsonFile = useCallback(async () => {
+    const json = JSON.stringify(buildSaveData(), null, 2)
+    const ok = await saveTextFile(`${fileStem(name)}.json`, ["json"], "JSON", "application/json", json)
+    if (ok) flash("JSON saved")
+  }, [name, flash])
+
   const handleImportPgn = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
@@ -105,58 +135,6 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
     },
     [loadPgn],
   )
-
-  const buildSaveData = useCallback((): SaveData => {
-    const g = useGameStore.getState()
-    const b = useBoardStore.getState()
-    const meta = useMetaStore.getState().snapshot()
-
-    return {
-      version: 1,
-      meta,
-      game: {
-        fullHistory: g.fullHistory,
-        historyIndex: g.historyIndex,
-        orientation: g.orientation,
-        bookmarks: g.bookmarks,
-        comments: g.comments,
-        isPlaying: g.isPlaying,
-        playSpeed: g.playSpeed,
-        currentLibraryId: g.currentLibraryId,
-      },
-      board: {
-        arrows: b.arrows.map((a) => ({ from: a.from, to: a.to, color: a.color })),
-        highlights: { ...b.highlights },
-        annotationHistory: b.annotationHistory.map((a) =>
-          a.type === "arrow"
-            ? { type: "arrow" as const, from: a.from, to: a.to }
-            : { type: "highlight" as const, square: a.square },
-        ),
-      },
-    }
-  }, [])
-
-  const handleNew = useCallback(() => {
-    const g = useGameStore.getState()
-    if (g.fullHistory.length > 0) {
-      const id = g.currentLibraryId
-      useLibraryStore.getState().addEntry(buildSaveData(), id ?? undefined)
-    }
-    useMetaStore.getState().reset()
-    reset()
-  }, [reset, buildSaveData])
-
-  const handleSaveToLibrary = useCallback(async () => {
-    const state = useGameStore.getState()
-    const id = state.currentLibraryId
-    const data = buildSaveData()
-    const savedId = useLibraryStore.getState().addEntry(data, id ?? undefined)
-    if (!id) useGameStore.setState({ currentLibraryId: savedId })
-  }, [buildSaveData])
-
-  const handleMetaSave = useCallback(() => {
-    handleSaveToLibrary()
-  }, [handleSaveToLibrary])
 
   const exportPng = useCallback(async () => {
     const el = document.getElementById("chess-mini-export")
@@ -223,6 +201,9 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
         ? "bg-black text-white"
         : "text-gray-400 hover:text-black hover:bg-gray-100"
     }`
+
+  const advBtn =
+    "font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100"
 
   return (
     <div className="flex flex-col px-3 pb-3 gap-2 md:gap-3">
@@ -297,6 +278,63 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
         </button>
       )}
 
+      {engineOn && eval_.depth > 0 && (
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+            Engine
+          </span>
+          <span className="font-mono text-[8px] tabular-nums text-gray-300">
+            depth {eval_.depth}
+          </span>
+        </div>
+      )}
+
+      {moveCount > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+              Move quality
+            </span>
+            <span className="font-mono text-[8px] text-gray-300">! !! ? ??</span>
+          </div>
+          <div className="flex gap-1.5 md:gap-1">
+            <button
+              onClick={toggleMark}
+              className={`flex-1 font-mono text-[10px] md:text-[9px] uppercase tracking-[0.1em] py-2 md:py-1.5 transition-colors ${
+                markMode
+                  ? "bg-black text-white"
+                  : "text-gray-400 hover:text-black hover:bg-gray-100"
+              }`}
+            >
+              Marks {markMode ? "On" : "Off"}
+            </button>
+            <button
+              onClick={analyzing ? cancelAnalysis : runAnalysis}
+              className={`flex-1 font-mono text-[10px] md:text-[9px] uppercase tracking-[0.1em] py-2 md:py-1.5 transition-colors ${
+                analyzing
+                  ? "bg-black text-white"
+                  : "text-gray-400 hover:text-black hover:bg-gray-100"
+              }`}
+            >
+              {analyzing ? `Stop ${done}/${total}` : "Analyze game"}
+            </button>
+          </div>
+          {analyzing && (
+            <div className="h-0.5 w-full bg-gray-100">
+              <div
+                className="h-full bg-black transition-all duration-150"
+                style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }}
+              />
+            </div>
+          )}
+          {markMode && !analyzing && (
+            <p className="font-mono text-[8px] text-gray-300 leading-snug">
+              Marks fill in as the engine sees each position — run “Analyze game” to mark the whole game.
+            </p>
+          )}
+        </div>
+      )}
+
       {engineOn && sanLine.length > 0 && (
         <div className="flex flex-col gap-1">
           <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
@@ -323,29 +361,31 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
             Candidates
           </span>
           <div className="flex flex-col gap-0.5">
-            {sanCandidates.map((c) => {
+            {sanCandidates.map((c, i) => {
               const label = c.mate !== null
                 ? `M${c.mate}`
                 : c.score > 0
                   ? `+${(c.score / 100).toFixed(1)}`
                   : (c.score / 100).toFixed(1)
 
-              const chipStyle = c.mate !== null
-                ? "bg-gray-100 text-black"
-                : c.score > 50
-                  ? "bg-gray-200 text-black font-semibold"
-                  : c.score < -50
-                    ? "bg-gray-50 text-gray-400"
-                    : "bg-gray-100 text-gray-400"
+              const dot = candidateColor(candidates, c)
 
               return (
                 <div key={c.multipv} className="flex items-center gap-1.5">
+                  <span className="font-mono text-[8px] w-3 text-right tabular-nums text-gray-300">
+                    {i + 1}
+                  </span>
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: dot }}
+                    title="Relative to best move"
+                  />
                   <span className="font-mono text-[9px] w-10 text-right tabular-nums text-gray-400">
                     {label}
                   </span>
                   <button
                     onClick={() => playChip(c.uci)}
-                    className={`font-mono text-[10px] px-1 py-0.5 transition-colors hover:bg-black hover:text-white ${chipStyle}`}
+                    className="font-mono text-[10px] px-1.5 py-1 md:py-0.5 bg-gray-100 text-black transition-colors hover:bg-black hover:text-white"
                     title="Tap to play"
                   >
                     {c.san}
@@ -385,28 +425,37 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
         </button>
 
         {advancedOpen && (
-          <div className="flex flex-wrap items-center gap-1 md:gap-0.5 mt-1.5">
-            <button onClick={handleNew} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
-              New
-            </button>
-            <button onClick={flipBoard} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
-              Flip
-            </button>
-            <button onClick={copyFen} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
-              {copied === "FEN" ? "Copied" : "FEN"}
-            </button>
-            <button onClick={copyPgn} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
-              {copied === "PGN" ? "Copied" : "PGN"}
-            </button>
-            <button onClick={() => fileInputRef.current?.click()} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
-              PGN
-            </button>
-            <button onClick={handleSaveToLibrary} className="font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors text-gray-400 hover:text-black hover:bg-gray-100">
-              Save
-            </button>
-            <button onClick={() => setEditing((v) => !v)} className={`font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1.5 md:py-1 transition-colors ${editing ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"}`}>
-              Edit
-            </button>
+          <div className="mt-2 flex flex-col gap-3 border-t border-gray-100 pt-3">
+            {/* Game metadata — rating, tags, notes (auto-saved) */}
+            <MetaEditor embedded />
+
+            {/* Export / import */}
+            <div className="flex flex-col gap-1.5">
+              <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+                Export / import
+              </span>
+              <div className="flex flex-wrap items-center gap-1 md:gap-0.5">
+                <button onClick={copyFen} className={advBtn}>
+                  {copied === "FEN" ? "Copied" : "Copy FEN"}
+                </button>
+                <button onClick={copyPgn} className={advBtn}>
+                  {copied === "PGN" ? "Copied" : "Copy PGN"}
+                </button>
+                <button onClick={exportPgnFile} className={advBtn}>
+                  {copied === "PGN saved" ? "Saved" : "PGN file"}
+                </button>
+                <button onClick={exportJsonFile} className={advBtn}>
+                  {copied === "JSON saved" ? "Saved" : "JSON file"}
+                </button>
+                <button onClick={() => fileInputRef.current?.click()} className={advBtn}>
+                  Import PGN
+                </button>
+                <button onClick={flipBoard} className={advBtn}>
+                  Flip board
+                </button>
+              </div>
+            </div>
+
             <input
               ref={fileInputRef}
               type="file"
@@ -417,10 +466,6 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
           </div>
         )}
       </div>
-
-      {editing && (
-        <MetaEditor onSave={handleMetaSave} onClose={() => setEditing(false)} />
-      )}
     </div>
   )
 }

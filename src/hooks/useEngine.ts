@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { useGameStore } from "../stores/useGameStore"
+import { useAnalysisStore } from "../stores/useAnalysisStore"
+import { toWhiteEval, MATE_BASE } from "../lib/moveQuality"
 
 export interface EvalResult {
   score: number
@@ -145,6 +147,28 @@ export function useEngine() {
       clearTimeout(timer)
     }
   }, [currentFen, enabled, ready])
+
+  // Cache each position's eval (debounced, once the search settles) so the
+  // Mark Analyzer can judge moves without any extra searches.
+  useEffect(() => {
+    if (!enabled || !ready || eval_.depth < 8) return
+    const fen = currentFen
+    const id = setTimeout(() => {
+      const side = fen.split(" ")[1] === "b" ? "b" : "w"
+      const evalWhite = toWhiteEval(side, eval_.score, eval_.mate)
+
+      let gap: number | null = null
+      if (candidates.length >= 2) {
+        const sv = (c: Candidate) =>
+          c.mate !== null ? (c.mate > 0 ? MATE_BASE : -MATE_BASE) : c.score
+        gap = Math.max(0, sv(candidates[0]) - sv(candidates[1]))
+      }
+      const bestUci = candidates[0]?.uci ?? eval_.bestLine[0] ?? null
+
+      useAnalysisStore.getState().record(fen, { evalWhite, bestUci, gap, depth: eval_.depth })
+    }, 350)
+    return () => clearTimeout(id)
+  }, [enabled, ready, currentFen, eval_, candidates])
 
   const toggle = useCallback(() => {
     setEnabled((e) => !e)

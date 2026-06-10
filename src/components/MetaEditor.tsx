@@ -1,7 +1,14 @@
 import { useState } from "react"
 import { useMetaStore } from "../stores/useMetaStore"
 
-export default function MetaEditor({ onSave, onClose }: { onSave: () => void; onClose: () => void }) {
+interface MetaEditorProps {
+  /** Embedded mode hides the header/Done bar; changes auto-save continuously. */
+  embedded?: boolean
+  onSave?: () => void
+  onClose?: () => void
+}
+
+export default function MetaEditor({ embedded = false, onSave, onClose }: MetaEditorProps) {
   const name = useMetaStore((s) => s.name)
   const rating = useMetaStore((s) => s.rating)
   const tags = useMetaStore((s) => s.tags)
@@ -37,18 +44,20 @@ export default function MetaEditor({ onSave, onClose }: { onSave: () => void; on
   }
 
   return (
-    <div className="flex flex-col gap-3 px-3 pb-3">
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-gray-400">
-          Edit Game
-        </span>
-        <button
-          onClick={() => { onSave(); onClose() }}
-          className="font-mono text-[9px] uppercase tracking-[0.15em] text-gray-400 hover:text-black transition-colors"
-        >
-          Done
-        </button>
-      </div>
+    <div className={embedded ? "flex flex-col gap-3" : "flex flex-col gap-3 px-3 pb-3"}>
+      {!embedded && (
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-gray-400">
+            Edit Game
+          </span>
+          <button
+            onClick={() => { onSave?.(); onClose?.() }}
+            className="font-mono text-[9px] uppercase tracking-[0.15em] text-gray-400 hover:text-black transition-colors"
+          >
+            Done
+          </button>
+        </div>
+      )}
 
       <label className="flex flex-col gap-1">
         <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">Name</span>

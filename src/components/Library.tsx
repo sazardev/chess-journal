@@ -5,6 +5,7 @@ import { usePersistenceStore } from "../stores/usePersistenceStore"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
+import { newGame } from "../lib/session"
 
 const SORT_LABELS = ["Newest", "Oldest", "A-Z", "Z-A", "Moves ↑", "Moves ↓", "Rating ↑", "Rating ↓"] as const
 
@@ -29,21 +30,24 @@ export default function Library({ open, onToggle }: Props) {
   const entries = useLibraryStore((s) => s.entries)
   const removeEntry = useLibraryStore((s) => s.removeEntry)
   const togglePin = useLibraryStore((s) => s.togglePin)
+  const toggleFavorite = useLibraryStore((s) => s.toggleFavorite)
   const updateEntryMeta = useLibraryStore((s) => s.updateEntryMeta)
   const [loadedId, setLoadedId] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [sortIdx, setSortIdx] = useState(0)
+  const [filter, setFilter] = useState<"all" | "pinned" | "favorite">("all")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [deletedEntry, setDeletedEntry] = useState<{ id: string; entry: ReturnType<typeof useLibraryStore.getState>["entries"][0] } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
-  const undoRef = useRef<ReturnType<typeof setTimeout>>()
+  const undoRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     if (open && searchRef.current) {
       searchRef.current.focus()
       setSearch("")
       setSortIdx(0)
+      setFilter("all")
     }
   }, [open])
 
@@ -136,20 +140,38 @@ export default function Library({ open, onToggle }: Props) {
     [togglePin],
   )
 
+  const handleFavorite = useCallback(
+    (e: React.MouseEvent, id: string) => {
+      e.stopPropagation()
+      toggleFavorite(id)
+    },
+    [toggleFavorite],
+  )
+
   const handleCycleSort = useCallback(() => {
     setSortIdx((i) => (i + 1) % SORT_LABELS.length)
   }, [])
 
+  const handleNewClick = useCallback(() => {
+    newGame()
+  }, [])
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
+    const byFilter =
+      filter === "pinned"
+        ? entries.filter((e) => e.pinned)
+        : filter === "favorite"
+          ? entries.filter((e) => e.favorite)
+          : entries
     const filtered = q
-      ? entries.filter(
+      ? byFilter.filter(
           (e) =>
             e.data.meta.name.toLowerCase().includes(q) ||
             e.data.meta.tags.some((t) => t.toLowerCase().includes(q)) ||
             e.data.meta.notes.toLowerCase().includes(q),
         )
-      : entries
+      : byFilter
 
     const getMoves = (e: (typeof entries)[0]) => e.data.game.fullHistory?.length ?? 0
     const getRating = (e: (typeof entries)[0]) => e.data.meta.rating ?? 0
@@ -177,10 +199,14 @@ export default function Library({ open, onToggle }: Props) {
       }
     })
 
+    // Only group by pin in the default view; filtered views show a flat list.
+    if (filter !== "all") {
+      return { pinned: [], unpinned: sorted, total: sorted.length }
+    }
     const pinned = sorted.filter((e) => e.pinned)
     const unpinned = sorted.filter((e) => !e.pinned)
     return { pinned, unpinned, total: sorted.length }
-  }, [entries, search, sortIdx])
+  }, [entries, search, sortIdx, filter])
 
   const renderEntry = (entry: (typeof entries)[0]) => {
     const isLoaded = loadedId === entry.id
@@ -228,8 +254,11 @@ export default function Library({ open, onToggle }: Props) {
             <div className="flex items-start justify-between gap-1">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1">
+                  {entry.favorite && (
+                    <span className="shrink-0 text-[9px] leading-none">♥</span>
+                  )}
                   {entry.pinned && (
-                    <span className="shrink-0 text-[9px]">★</span>
+                    <span className="shrink-0 text-[9px] leading-none">★</span>
                   )}
                   <p className="font-mono text-[10px] md:text-[11px] text-black truncate">
                     {entry.data.meta.name || "Untitled"}
@@ -269,7 +298,19 @@ export default function Library({ open, onToggle }: Props) {
                   ✎
                 </button>
                 <button
+                  onClick={(e) => handleFavorite(e, entry.id)}
+                  title="Favorite"
+                  className={`font-mono text-sm transition-all px-0.5 ${
+                    entry.favorite
+                      ? "text-black"
+                      : "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-black"
+                  }`}
+                >
+                  {entry.favorite ? "♥" : "♡"}
+                </button>
+                <button
                   onClick={(e) => handlePin(e, entry.id)}
+                  title="Pin"
                   className={`font-mono text-sm transition-all px-0.5 ${
                     entry.pinned
                       ? "text-black"
@@ -293,9 +334,9 @@ export default function Library({ open, onToggle }: Props) {
   }
 
   return (
-    <div className="relative flex shrink-0 z-30">
+    <div className="relative z-40 flex shrink-0 max-lg:absolute max-lg:inset-y-0 max-lg:left-0">
       <div
-        className={`overflow-hidden transition-all duration-200 ${
+        className={`overflow-hidden transition-all duration-200 max-lg:shadow-xl ${
           open ? "w-56 md:w-60" : "w-0"
         }`}
       >
@@ -304,9 +345,17 @@ export default function Library({ open, onToggle }: Props) {
             <span className="font-mono text-[9px] md:text-[10px] uppercase tracking-[0.15em] text-gray-400">
               Library
             </span>
-            <span className="font-mono text-[9px] tabular-nums text-gray-300">
-              {entries.length}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleNewClick}
+                className="font-mono text-[9px] uppercase tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
+              >
+                New
+              </button>
+              <span className="font-mono text-[9px] tabular-nums text-gray-300">
+                {entries.length}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-1 px-3 pb-1.5">
@@ -326,6 +375,26 @@ export default function Library({ open, onToggle }: Props) {
             </button>
           </div>
 
+          <div className="flex items-center gap-1 px-3 pb-1.5">
+            {([
+              ["all", "All"],
+              ["pinned", "★ Pinned"],
+              ["favorite", "♥ Favorites"],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setFilter(key)}
+                className={`font-mono text-[8px] uppercase tracking-[0.08em] px-1.5 py-0.5 transition-colors ${
+                  filter === key
+                    ? "bg-black text-white"
+                    : "text-gray-400 hover:text-black hover:bg-gray-100"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           {deletedEntry && (
             <div className="flex items-center justify-between px-3 py-1 bg-gray-50">
               <span className="font-mono text-[9px] text-gray-400 truncate">
@@ -343,7 +412,13 @@ export default function Library({ open, onToggle }: Props) {
           <div className="flex-1 overflow-y-auto px-3 pb-2">
             {filtered.total === 0 && (
               <p className="py-4 text-center font-mono text-[10px] text-gray-300">
-                {search ? "No results" : "No saved games"}
+                {search
+                  ? "No results"
+                  : filter === "favorite"
+                    ? "No favorites"
+                    : filter === "pinned"
+                      ? "No pinned games"
+                      : "No saved games"}
               </p>
             )}
 

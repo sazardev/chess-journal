@@ -26,5 +26,34 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     user-select: none;
+    /* Respect device safe areas on small/touch screens. */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* Inputs and textareas must remain selectable. */
+  input,
+  textarea {
+    user-select: text;
+  }
+
+  /* Thin, restrained scrollbars matching the monochrome shell. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #d4d4d4 transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: #d4d4d4;
+    border-radius: 3px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
   }
 }

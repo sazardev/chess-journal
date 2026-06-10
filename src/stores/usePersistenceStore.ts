@@ -11,8 +11,10 @@ interface PersistenceState {
   init: () => Promise<void>
   writeAutosave: (data: SaveData) => Promise<void>
   readAutosave: () => Promise<SaveData | null>
+  clearAutosave: () => Promise<void>
   writeLibrary: (entries: { id: string; data: SaveData; savedAt: string }[]) => Promise<void>
   readLibrary: () => Promise<{ id: string; data: SaveData; savedAt: string }[]>
+  clearAll: () => Promise<void>
 }
 
 async function resolveDataDir(): Promise<string> {
@@ -47,7 +49,7 @@ function localGet<T>(key: string, fallback: T): T {
 function localSet(key: string, value: unknown) {
   try {
     localStorage.setItem(`chess-mini-${key}`, JSON.stringify(value))
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 export const usePersistenceStore = create<PersistenceState>((set, get) => ({
@@ -84,7 +86,7 @@ export const usePersistenceStore = create<PersistenceState>((set, get) => ({
         const { writeTextFile } = await import("@tauri-apps/plugin-fs")
         await writeTextFile(`${dataDir}/${AUTOSAVE}`, json)
         return
-      } catch {}
+      } catch { /* ignore */ }
     }
 
     localSet("autosave", data)
@@ -100,12 +102,28 @@ export const usePersistenceStore = create<PersistenceState>((set, get) => ({
         const fileExists = await exists(path)
         if (fileExists) {
           const raw = await readTextFile(path)
-          return JSON.parse(raw) as SaveData
+          return JSON.parse(raw) as SaveData | null
         }
-      } catch {}
+      } catch { /* ignore */ }
     }
 
     return localGet<SaveData | null>("autosave", null)
+  },
+
+  clearAutosave: async () => {
+    const { dataDir } = get()
+
+    if (dataDir !== "__local__") {
+      try {
+        const { writeTextFile } = await import("@tauri-apps/plugin-fs")
+        await writeTextFile(`${dataDir}/${AUTOSAVE}`, "null")
+        return
+      } catch { /* ignore */ }
+    }
+
+    try {
+      localStorage.removeItem("chess-mini-autosave")
+    } catch { /* ignore */ }
   },
 
   writeLibrary: async (entries) => {
@@ -117,7 +135,7 @@ export const usePersistenceStore = create<PersistenceState>((set, get) => ({
         const { writeTextFile } = await import("@tauri-apps/plugin-fs")
         await writeTextFile(`${dataDir}/${LIBRARY}`, json)
         return
-      } catch {}
+      } catch { /* ignore */ }
     }
 
     localSet("library", entries)
@@ -136,9 +154,27 @@ export const usePersistenceStore = create<PersistenceState>((set, get) => ({
           const data = JSON.parse(raw)
           if (Array.isArray(data)) return data
         }
-      } catch {}
+      } catch { /* ignore */ }
     }
 
     return localGet<{ id: string; data: SaveData; savedAt: string }[]>("library", [])
+  },
+
+  clearAll: async () => {
+    const { dataDir } = get()
+
+    if (dataDir !== "__local__") {
+      try {
+        const { writeTextFile } = await import("@tauri-apps/plugin-fs")
+        await writeTextFile(`${dataDir}/${AUTOSAVE}`, "null")
+        await writeTextFile(`${dataDir}/${LIBRARY}`, "[]")
+        return
+      } catch { /* ignore */ }
+    }
+
+    try {
+      localStorage.removeItem("chess-mini-autosave")
+      localStorage.removeItem("chess-mini-library")
+    } catch { /* ignore */ }
   },
 }))

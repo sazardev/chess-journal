@@ -1,7 +1,9 @@
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useState, useMemo } from "react"
 import { useGameStore } from "../stores/useGameStore"
+import { useAnalysisStore, posKey } from "../stores/useAnalysisStore"
+import { classifyMove, nagColor, type Nag } from "../lib/moveQuality"
 
-export default function MoveHistory() {
+export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }) {
   const history = useGameStore((s) => s.fullHistory)
   const historyIndex = useGameStore((s) => s.historyIndex)
   const goToMove = useGameStore((s) => s.goToMove)
@@ -18,10 +20,35 @@ export default function MoveHistory() {
   const comments = useGameStore((s) => s.comments)
   const setComment = useGameStore((s) => s.setComment)
 
+  const markMode = useAnalysisStore((s) => s.markMode)
+  const toggleMark = useAnalysisStore((s) => s.toggleMark)
+  const byFen = useAnalysisStore((s) => s.byFen)
+
   const [editingComment, setEditingComment] = useState<number | null>(null)
   const [commentValue, setCommentValue] = useState("")
 
   const listRef = useRef<HTMLDivElement>(null)
+
+  // Move-quality marks (!!, !, ?!, ?, ??) computed from cached evals.
+  const marks = useMemo(() => {
+    const out: Record<number, Nag> = {}
+    if (!markMode) return out
+    for (let i = 0; i < history.length; i++) {
+      const mv = history[i] as (typeof history)[number] & {
+        before?: string
+        after?: string
+        lan?: string
+      }
+      if (!mv.before || !mv.after) continue
+      const before = byFen[posKey(mv.before)]
+      const after = byFen[posKey(mv.after)]
+      if (!before || !after) continue
+      const uci = mv.lan ?? `${mv.from}${mv.to}${(mv as { promotion?: string }).promotion ?? ""}`
+      const nag = classifyMove(i % 2 === 0, before, after, uci)
+      if (nag) out[i] = nag
+    }
+    return out
+  }, [markMode, history, byFen])
 
   useEffect(() => {
     if (listRef.current) {
@@ -53,9 +80,24 @@ export default function MoveHistory() {
   return (
     <div className="flex flex-col max-h-40 md:h-full md:max-h-none">
       <div className="flex items-center justify-between px-3 py-2">
-        <span className="font-mono text-[9px] md:text-[10px] uppercase tracking-[0.15em] text-gray-400">
-          History
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[9px] md:text-[10px] uppercase tracking-[0.15em] text-gray-400">
+            History
+          </span>
+          {(engineOn || markMode) && (
+            <button
+              onClick={toggleMark}
+              title="Mark move quality from analysis (!? ?!)"
+              className={`font-mono text-[8px] uppercase tracking-[0.1em] px-1.5 py-0.5 transition-colors ${
+                markMode
+                  ? "bg-black text-white"
+                  : "text-gray-400 hover:text-black hover:bg-gray-100"
+              }`}
+            >
+              Marks
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-0.5 md:gap-1">
           <button
             onClick={goToStart}
@@ -76,7 +118,7 @@ export default function MoveHistory() {
               isPlaying ? "text-black" : "text-gray-400 hover:text-black"
             }`}
           >
-            {isPlaying ? "&#x25A0;" : "&#x25B6;"}
+            {isPlaying ? "■" : "▶"}
           </button>
           <button
             onClick={goForward}
@@ -177,6 +219,15 @@ export default function MoveHistory() {
                   {pair.white!.san}
                 </button>
 
+                {marks[whiteIdx] && (
+                  <span
+                    className="ml-0.5 font-mono text-[11px] font-bold leading-none"
+                    style={{ color: nagColor(marks[whiteIdx]) }}
+                  >
+                    {marks[whiteIdx]}
+                  </span>
+                )}
+
                 {pair.black && (
                   <>
                     <button
@@ -208,6 +259,15 @@ export default function MoveHistory() {
                     >
                       {pair.black.san}
                     </button>
+
+                    {marks[blackIdx] && (
+                      <span
+                        className="ml-0.5 font-mono text-[11px] font-bold leading-none"
+                        style={{ color: nagColor(marks[blackIdx]) }}
+                      >
+                        {marks[blackIdx]}
+                      </span>
+                    )}
                   </>
                 )}
 

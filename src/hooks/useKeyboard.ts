@@ -4,7 +4,11 @@ type ShortcutMap = Record<string, (e: KeyboardEvent) => void>
 
 export function useKeyboard(shortcuts: ShortcutMap, deps: unknown[] = []) {
   const ref = useRef(shortcuts)
-  ref.current = shortcuts
+
+  // Keep the handler map fresh without resubscribing the listener.
+  useEffect(() => {
+    ref.current = shortcuts
+  })
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

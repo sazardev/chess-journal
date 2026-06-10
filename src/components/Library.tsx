@@ -1,8 +1,9 @@
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import type { Square } from "chess.js"
 import { useLibraryStore } from "../stores/useLibraryStore"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
+import { useMetaStore } from "../stores/useMetaStore"
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -24,15 +25,35 @@ interface Props {
 export default function Library({ open, onToggle }: Props) {
   const entries = useLibraryStore((s) => s.entries)
   const removeEntry = useLibraryStore((s) => s.removeEntry)
+  const [loadedId, setLoadedId] = useState<string | null>(null)
 
   const handleLoad = useCallback(
     (entryId: string) => {
-      const entry = useLibraryStore.getState().entries.find((e) => e.id === entryId)
-      if (!entry) return
+      const state = useLibraryStore.getState()
+      const entry = state.entries.find((e) => e.id === entryId)
+      if (!entry) {
+        console.error("[Library] entry not found:", entryId, "available:", state.entries.map((e) => e.id))
+        return
+      }
+
+      console.log("[Library] loading entry:", entry.id, entry.data.meta.name, entry.data.game.fullHistory.length, "moves")
 
       const { game, board } = entry.data
 
-      useGameStore.getState().restoreState(game)
+      if (!game || !game.fullHistory) {
+        console.error("[Library] invalid game data in entry:", entry)
+        return
+      }
+
+      try {
+        useGameStore.getState().restoreState({ ...game, currentLibraryId: entryId })
+        console.log("[Library] restoreState done, fen:", useGameStore.getState().fen)
+      } catch (err) {
+        console.error("[Library] restoreState error:", err)
+        return
+      }
+
+      useMetaStore.getState().load(entry.data.meta)
 
       const b = useBoardStore.getState()
       b.clearAll()
@@ -42,6 +63,9 @@ export default function Library({ open, onToggle }: Props) {
       for (const [sq, color] of Object.entries(board?.highlights ?? {})) {
         b.highlightSquare(sq as Square, color)
       }
+
+      setLoadedId(entryId)
+      setTimeout(() => setLoadedId(null), 1200)
     },
     [],
   )
@@ -50,6 +74,9 @@ export default function Library({ open, onToggle }: Props) {
     (e: React.MouseEvent, id: string) => {
       e.stopPropagation()
       removeEntry(id)
+      if (useGameStore.getState().currentLibraryId === id) {
+        useGameStore.setState({ currentLibraryId: null })
+      }
     },
     [removeEntry],
   )
@@ -82,12 +109,17 @@ export default function Library({ open, onToggle }: Props) {
               <button
                 key={entry.id}
                 onClick={() => handleLoad(entry.id)}
-                className="group w-full text-left px-2 py-1.5 -mx-2 transition-colors hover:bg-gray-50"
+                className={`group w-full text-left px-2 py-1.5 -mx-2 transition-colors hover:bg-gray-50 ${
+                  loadedId === entry.id ? "bg-gray-100" : ""
+                }`}
               >
                 <div className="flex items-start justify-between gap-1">
                   <div className="flex-1 min-w-0">
                     <p className="font-mono text-[10px] md:text-[11px] text-black truncate">
                       {entry.data.meta.name || "Untitled"}
+                      {loadedId === entry.id && (
+                        <span className="ml-1 text-[8px] text-gray-400 font-normal">loaded</span>
+                      )}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="font-mono text-[8px] text-gray-400">

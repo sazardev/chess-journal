@@ -4,8 +4,10 @@ import { Chess, type Square, type Move } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useLibraryStore } from "../stores/useLibraryStore"
+import { useMetaStore } from "../stores/useMetaStore"
 import type { useEngine } from "../hooks/useEngine"
 import type { SaveData } from "../types/save"
+import MetaEditor from "./MetaEditor"
 
 function uciToSanList(fen: string, uciMoves: string[]): string[] {
   const g = new Chess(fen)
@@ -40,6 +42,8 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
   const getPgn = useGameStore((s) => s.getPgn)
   const getFen = useGameStore((s) => s.getFen)
   const makeMove = useGameStore((s) => s.makeMove)
+  const currentLibraryId = useGameStore((s) => s.currentLibraryId)
+  const setCurrentLibraryId = useGameStore((s) => s.setCurrentLibraryId)
 
   const annotationMode = useBoardStore((s) => s.annotationMode)
   const toggleAnnotationMode = useBoardStore((s) => s.toggleAnnotationMode)
@@ -51,6 +55,7 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
   const [copied, setCopied] = useState("")
   const [exportState, setExportState] = useState<"idle" | "loading" | "error" | "done">("idle")
   const [exportError, setExportError] = useState("")
+  const [editing, setEditing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const sanLine = useMemo(
@@ -105,18 +110,11 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
   const buildSaveData = useCallback((): SaveData => {
     const g = useGameStore.getState()
     const b = useBoardStore.getState()
-    const now = new Date().toISOString()
+    const meta = useMetaStore.getState().snapshot()
 
     return {
       version: 1,
-      meta: {
-        name: "Untitled",
-        rating: 0,
-        tags: [],
-        notes: "",
-        createdAt: now,
-        updatedAt: now,
-      },
+      meta,
       game: {
         fullHistory: g.fullHistory,
         historyIndex: g.historyIndex,
@@ -125,6 +123,7 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
         comments: g.comments,
         isPlaying: g.isPlaying,
         playSpeed: g.playSpeed,
+        currentLibraryId: g.currentLibraryId,
       },
       board: {
         arrows: b.arrows.map((a) => ({ from: a.from, to: a.to, color: a.color })),
@@ -141,93 +140,23 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
   const handleNew = useCallback(() => {
     const g = useGameStore.getState()
     if (g.fullHistory.length > 0) {
-      useLibraryStore.getState().addEntry(buildSaveData())
+      const id = g.currentLibraryId
+      useLibraryStore.getState().addEntry(buildSaveData(), id ?? undefined)
     }
+    useMetaStore.getState().reset()
     reset()
   }, [reset, buildSaveData])
 
-  const handleSave = useCallback(async () => {
+  const handleSaveToLibrary = useCallback(async () => {
+    const id = useGameStore.getState().currentLibraryId
     const data = buildSaveData()
-    const json = JSON.stringify(data, null, 2)
-
-    try {
-      const { save: saveDialog } = await import("@tauri-apps/plugin-dialog")
-      const { writeTextFile: writeFile } = await import("@tauri-apps/plugin-fs")
-
-      const path = await saveDialog({
-        defaultPath: "game.chess-mini.json",
-        filters: [{ name: "Chess Mini Save", extensions: ["chess-mini.json", "json"] }],
-      })
-      if (!path) return
-      await writeFile(path, json)
-    } catch {
-      const blob = new Blob([json], { type: "application/json" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = "game.chess-mini.json"
-      a.click()
-      URL.revokeObjectURL(url)
-    }
-
-    useLibraryStore.getState().addEntry(data)
+    const savedId = await useLibraryStore.getState().addEntry(data, id ?? undefined)
+    if (!id) useGameStore.setState({ currentLibraryId: savedId })
   }, [buildSaveData])
 
-  const handleLoad = useCallback(async () => {
-    const restoreState = useGameStore.getState().restoreState
-    const b = useBoardStore.getState()
-
-    try {
-      const { open: openDialog } = await import("@tauri-apps/plugin-dialog")
-      const { readTextFile: readFile } = await import("@tauri-apps/plugin-fs")
-
-      const path = await openDialog({
-        filters: [{ name: "Chess Mini Save", extensions: ["chess-mini.json", "json"] }],
-        multiple: false,
-      })
-      if (!path) return
-
-      const text = await readFile(path as string)
-      const data: SaveData = JSON.parse(text)
-
-      if (data.game && data.board) {
-        restoreState(data.game)
-
-        b.clearAll()
-        for (const a of data.board.arrows) {
-          b.addArrow(a.from as Square, a.to as Square)
-        }
-        for (const [sq, color] of Object.entries(data.board.highlights)) {
-          b.highlightSquare(sq as Square, color)
-        }
-        useLibraryStore.getState().addEntry(data)
-      }
-    } catch {
-      const input = document.createElement("input")
-      input.type = "file"
-      input.accept = ".json,.chess-mini.json"
-      input.onchange = async () => {
-        const file = input.files?.[0]
-        if (!file) return
-        const text = await file.text()
-        const data: SaveData = JSON.parse(text)
-
-        if (data.game && data.board) {
-          restoreState(data.game)
-
-          b.clearAll()
-          for (const a of data.board.arrows) {
-            b.addArrow(a.from as Square, a.to as Square)
-          }
-          for (const [sq, color] of Object.entries(data.board.highlights)) {
-            b.highlightSquare(sq as Square, color)
-          }
-          useLibraryStore.getState().addEntry(data)
-        }
-      }
-      input.click()
-    }
-  }, [])
+  const handleMetaSave = useCallback(() => {
+    handleSaveToLibrary()
+  }, [handleSaveToLibrary])
 
   const exportPng = useCallback(async () => {
     const el = document.getElementById("chess-mini-export")
@@ -309,9 +238,11 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
         <button onClick={copyPgn} className={btn}>
           {copied === "PGN" ? "Copied" : "PGN"}
         </button>
-        <button onClick={() => fileInputRef.current?.click()} className={btn}>Import</button>
-        <button onClick={handleSave} className={btn}>Save</button>
-        <button onClick={handleLoad} className={btn}>Load</button>
+        <button onClick={() => fileInputRef.current?.click()} className={btn}>PGN</button>
+        <button onClick={handleSaveToLibrary} className={btn}>Save</button>
+        <button onClick={() => setEditing((v) => !v)} className={`${btn} ${editing ? "bg-black text-white" : ""}`}>
+          Edit
+        </button>
         <input
           ref={fileInputRef}
           type="file"
@@ -321,7 +252,11 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
         />
       </div>
 
-      <div className="flex flex-col gap-1.5 md:gap-2">
+      {editing ? (
+        <MetaEditor onSave={handleMetaSave} onClose={() => setEditing(false)} />
+      ) : (
+        <>
+          <div className="flex flex-col gap-1.5 md:gap-2">
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] md:text-[9px] uppercase tracking-[0.15em] text-gray-400">
             Annotations
@@ -450,6 +385,8 @@ export default function ControlBar({ engine }: { engine: ReturnType<typeof useEn
             })}
           </div>
         </div>
+      )}
+        </>
       )}
 
       <button

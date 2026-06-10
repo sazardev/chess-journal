@@ -11,11 +11,11 @@ import { useEngine } from "./hooks/useEngine"
 import { useGameStore } from "./stores/useGameStore"
 import { useBoardStore } from "./stores/useBoardStore"
 import { useLibraryStore } from "./stores/useLibraryStore"
+import { useMetaStore } from "./stores/useMetaStore"
 import { useConfigStore } from "./stores/useConfigStore"
+import { usePersistenceStore } from "./stores/usePersistenceStore"
 import type { SaveData } from "./types/save"
 import type { Square } from "chess.js"
-
-const AUTOSAVE_KEY = "chess-mini-autosave"
 
 export default function App() {
   const undo = useGameStore((s) => s.undo)
@@ -24,13 +24,15 @@ export default function App() {
   const goBack = useGameStore((s) => s.goBack)
   const goForward = useGameStore((s) => s.goForward)
   const flipBoard = useGameStore((s) => s.flipBoard)
+  const reset = useGameStore((s) => s.reset)
   const newGame = useCallback(() => {
     const g = useGameStore.getState()
     if (g.fullHistory.length > 0) {
       const b = useBoardStore.getState()
+      const meta = useMetaStore.getState().snapshot()
       const data: SaveData = {
         version: 1,
-        meta: { name: "Untitled", rating: 0, tags: [], notes: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        meta,
         game: {
           fullHistory: g.fullHistory,
           historyIndex: g.historyIndex,
@@ -39,6 +41,7 @@ export default function App() {
           comments: g.comments,
           isPlaying: g.isPlaying,
           playSpeed: g.playSpeed,
+          currentLibraryId: g.currentLibraryId,
         },
         board: {
           arrows: b.arrows.map((a) => ({ from: a.from, to: a.to, color: a.color })),
@@ -48,6 +51,7 @@ export default function App() {
       }
       useLibraryStore.getState().addEntry(data)
     }
+    useMetaStore.getState().reset()
     reset()
   }, [reset])
   const togglePlay = useGameStore((s) => s.togglePlay)
@@ -66,6 +70,11 @@ export default function App() {
   const configSetOrientation = useConfigStore((s) => s.setOrientation)
   const configSetPlaySpeed = useConfigStore((s) => s.setPlaySpeed)
 
+  const persistenceInit = usePersistenceStore((s) => s.init)
+  const persistenceReady = usePersistenceStore((s) => s.ready)
+  const readAutosave = usePersistenceStore((s) => s.readAutosave)
+  const writeAutosave = usePersistenceStore((s) => s.writeAutosave)
+
   const engine = useEngine()
 
   const [libraryOpen, setLibraryOpen] = useState(false)
@@ -74,36 +83,43 @@ export default function App() {
 
   const moveInputRef = useRef<HTMLInputElement>(null)
   const restoredRef = useRef(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
     configInit()
-    loadLibrary()
+    persistenceInit()
   }, [])
 
   useEffect(() => {
-    if (!configLoaded) return
+    if (!persistenceReady) return
+    loadLibrary()
+  }, [persistenceReady])
 
-    const restored = restoredRef.current
-    if (!restored) {
+  useEffect(() => {
+    if (!configLoaded || !persistenceReady) return
+
+    const restore = async () => {
+      if (restoredRef.current) return
+      restoredRef.current = true
+
       try {
-        const raw = localStorage.getItem(AUTOSAVE_KEY)
-        if (raw) {
-          const data: SaveData = JSON.parse(raw)
-          if (data.game && data.game.fullHistory.length > 0) {
-            restoreState(data.game)
+        const data = await readAutosave()
+        if (data?.game?.fullHistory?.length) {
+          restoreState(data.game)
+          useMetaStore.getState().load(data.meta)
 
-            const b = useBoardStore.getState()
-            for (const a of data.board?.arrows ?? []) {
-              b.addArrow(a.from as Square, a.to as Square)
-            }
-            for (const [sq, color] of Object.entries(data.board?.highlights ?? {})) {
-              b.highlightSquare(sq as Square, color)
-            }
+          const b = useBoardStore.getState()
+          for (const a of data.board?.arrows ?? []) {
+            b.addArrow(a.from as Square, a.to as Square)
+          }
+          for (const [sq, color] of Object.entries(data.board?.highlights ?? {})) {
+            b.highlightSquare(sq as Square, color)
           }
         }
       } catch {}
-      restoredRef.current = true
     }
+
+    restore()
 
     const { orientation, playSpeed } = useConfigStore.getState()
     useGameStore.setState({ orientation, playSpeed })
@@ -117,34 +133,44 @@ export default function App() {
       }
     })
     return unsub
-  }, [configLoaded])
+  }, [configLoaded, persistenceReady])
 
   useEffect(() => {
     if (!restoredRef.current) return
 
-    const g = useGameStore.getState()
-    const b = useBoardStore.getState()
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
 
-    const data: SaveData = {
-      version: 1,
-      meta: { name: "Autosave", rating: 0, tags: [], notes: "", createdAt: "", updatedAt: new Date().toISOString() },
-      game: {
-        fullHistory: g.fullHistory,
-        historyIndex: g.historyIndex,
-        orientation: g.orientation,
-        bookmarks: g.bookmarks,
-        comments: g.comments,
-        isPlaying: g.isPlaying,
-        playSpeed: g.playSpeed,
-      },
-      board: {
-        arrows: b.arrows.map((a) => ({ from: a.from, to: a.to, color: a.color })),
-        highlights: { ...b.highlights },
-        annotationHistory: [],
-      },
+    saveTimerRef.current = setTimeout(() => {
+      const g = useGameStore.getState()
+      const b = useBoardStore.getState()
+      const meta = useMetaStore.getState().snapshot()
+
+      const data: SaveData = {
+        version: 1,
+        meta,
+        game: {
+          fullHistory: g.fullHistory,
+          historyIndex: g.historyIndex,
+          orientation: g.orientation,
+          bookmarks: g.bookmarks,
+          comments: g.comments,
+          isPlaying: g.isPlaying,
+          playSpeed: g.playSpeed,
+          currentLibraryId: g.currentLibraryId,
+        },
+        board: {
+          arrows: b.arrows.map((a) => ({ from: a.from, to: a.to, color: a.color })),
+          highlights: { ...b.highlights },
+          annotationHistory: [],
+        },
+      }
+
+      writeAutosave(data)
+    }, 500)
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     }
-
-    try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data)) } catch {}
   }, [fullHistory, historyIndex])
 
   useKeyboard(

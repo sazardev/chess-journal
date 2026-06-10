@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import type { SaveData } from "../types/save"
+import { usePersistenceStore } from "./usePersistenceStore"
 
 export interface LibraryEntry {
   id: string
@@ -11,35 +12,21 @@ function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
 }
 
-function loadFromStorage(): LibraryEntry[] {
-  try {
-    const raw = localStorage.getItem("chess-mini-library")
-    if (!raw) return []
-    const parsed: LibraryEntry[] = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed
-  } catch {
-    return []
-  }
-}
-
-function saveToStorage(entries: LibraryEntry[]) {
-  try {
-    localStorage.setItem("chess-mini-library", JSON.stringify(entries))
-  } catch {}
-}
-
 interface LibraryState {
   entries: LibraryEntry[]
-  addEntry: (data: SaveData, id?: string) => string
-  removeEntry: (id: string) => void
-  loadFromStorage: () => void
+  addEntry: (data: SaveData, id?: string) => Promise<string>
+  removeEntry: (id: string) => Promise<void>
+  loadFromStorage: () => Promise<void>
+}
+
+async function persist(entries: LibraryEntry[]) {
+  await usePersistenceStore.getState().writeLibrary(entries)
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   entries: [],
 
-  addEntry: (data, existingId) => {
+  addEntry: async (data, existingId?) => {
     const { entries } = get()
     const id = existingId ?? uid()
     const entry: LibraryEntry = {
@@ -58,18 +45,20 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
     const trimmed = next.slice(0, 50)
     set({ entries: trimmed })
-    saveToStorage(trimmed)
+    await persist(trimmed)
     return id
   },
 
-  removeEntry: (id) => {
+  removeEntry: async (id) => {
     const next = get().entries.filter((e) => e.id !== id)
     set({ entries: next })
-    saveToStorage(next)
+    await persist(next)
   },
 
-  loadFromStorage: () => {
-    const entries = loadFromStorage()
+  loadFromStorage: async () => {
+    const store = usePersistenceStore.getState()
+    if (!store.ready) return
+    const entries = await store.readLibrary()
     set({ entries })
   },
 }))

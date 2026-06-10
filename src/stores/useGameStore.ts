@@ -16,6 +16,7 @@ export interface GameState {
   playSpeed: number
   bookmarks: number[]
   comments: Record<number, string>
+  currentLibraryId: string | null
 
   makeMove: (from: Square, to: Square, promotion?: string) => boolean
   makeMoveSan: (san: string) => boolean
@@ -37,6 +38,7 @@ export interface GameState {
     comments: Record<number, string>
     isPlaying: boolean
     playSpeed: number
+    currentLibraryId: string | null
   }) => void
   getPgn: () => string
   getFen: () => string
@@ -79,6 +81,9 @@ export const useGameStore = create<GameState>((set, get) => {
     playSpeed: 500,
     bookmarks: [],
     comments: {},
+    currentLibraryId: null,
+
+    setCurrentLibraryId: (id) => set({ currentLibraryId: id }),
 
     makeMove: (from, to, promotion) => {
       const { game, fullHistory, historyIndex } = get()
@@ -173,6 +178,7 @@ export const useGameStore = create<GameState>((set, get) => {
         isPlaying: false,
         bookmarks: [],
         comments: {},
+        currentLibraryId: null,
       })
     },
 
@@ -184,6 +190,7 @@ export const useGameStore = create<GameState>((set, get) => {
         ...computeState(g, 0),
         bookmarks: [],
         comments: {},
+        currentLibraryId: null,
       })
     },
 
@@ -197,6 +204,7 @@ export const useGameStore = create<GameState>((set, get) => {
         ...computeState(g, fullHistory.length),
         bookmarks: [],
         comments: {},
+        currentLibraryId: null,
       })
     },
 
@@ -212,6 +220,7 @@ export const useGameStore = create<GameState>((set, get) => {
         comments: state.comments,
         isPlaying: false,
         playSpeed: state.playSpeed,
+        currentLibraryId: state.currentLibraryId ?? null,
       })
     },
 

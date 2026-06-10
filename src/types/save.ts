@@ -18,6 +18,7 @@ export interface SaveData {
     comments: Record<number, string>
     isPlaying: boolean
     playSpeed: number
+    currentLibraryId: string | null
   }
   board: {
     arrows: { from: string; to: string; color: string }[]

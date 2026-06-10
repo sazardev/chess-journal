@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Mobile Settings page (a 4th bottom-nav item) holding version/updates, data management and the shortcut reference — moved off the title bar.
+- Contextual mobile app bar: opening Library or Settings shows a back arrow and the section name instead of the game title.
+
+### Changed
+- The Library now opens full-screen on mobile (it was a cramped drawer), with the Classics catalog, search and filters fully visible; opening it no longer pops up the keyboard.
+- On mobile the title bar shows only the title; version/settings/shortcuts live on the Settings page.
+
+### Fixed
+- The move-input bar now lifts above the on-screen keyboard (Android `adjustResize` + `interactive-widget`), and the bottom nav hides while typing — the field is no longer covered.
+- Android APKs strip native debug symbols, shrinking the universal APK from ~130 MB/ABI so it installs on storage-constrained devices and emulators.
+- The CI emulator step runs from a single script so the APK path survives to the install/launch/screenshot commands.
+
 ## [0.1.8] - 2026-06-10
 
 ### Added

@@ -12,9 +12,19 @@ interface Props {
   onOpenSettings: () => void
   onOpenShortcuts: () => void
   onOpenAbout: () => void
+  /** When a full-screen mobile section is open, the bar becomes contextual:
+      a back arrow + the section name instead of the game title. */
+  mobileSection?: "library" | "settings" | null
+  onMobileBack?: () => void
 }
 
-export default function TitleBar({ onOpenSettings, onOpenShortcuts, onOpenAbout }: Props) {
+export default function TitleBar({
+  onOpenSettings,
+  onOpenShortcuts,
+  onOpenAbout,
+  mobileSection = null,
+  onMobileBack,
+}: Props) {
   const updateAvailable = useUpdateStore((s) => s.status === "available")
   const [maximized, setMaximized] = useState(false)
   const touch = useTouch()
@@ -60,40 +70,62 @@ export default function TitleBar({ onOpenSettings, onOpenShortcuts, onOpenAbout 
       data-tauri-drag-region
       className="fixed top-0 left-0 right-0 z-50 flex h-[calc(2.25rem+env(safe-area-inset-top))] items-center justify-between bg-white px-2 pt-[env(safe-area-inset-top)] select-none"
     >
-      {/* Left: wordmark + version + tools */}
+      {touch && mobileSection ? (
+        /* Contextual mobile app bar: back arrow + section name. */
+        <div className="flex items-center gap-1.5 pl-1">
+          <button
+            onClick={onMobileBack}
+            aria-label="Back"
+            className="flex h-8 w-8 items-center justify-center text-gray-500 hover:text-black transition-colors -ml-1"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-black">
+            {mobileSection === "library" ? "Library" : "Settings"}
+          </span>
+        </div>
+      ) : (
+        <>
+      {/* Left: wordmark + version + tools.
+          On mobile (touch) the version/settings/shortcuts live on the Settings
+          page in the bottom nav, so only the wordmark stays here. */}
       <div className="flex items-center gap-1 pl-1">
-        <span className="hidden sm:inline font-mono text-[10px] tracking-widest uppercase text-gray-400 pr-0.5">
+        <span className="font-mono text-[10px] tracking-widest uppercase text-gray-400 pr-0.5">
           Chess Mini
         </span>
-        <button
-          onClick={onOpenAbout}
-          title="Version, changelog & updates"
-          className="relative flex items-center font-mono text-[9px] tabular-nums text-gray-300 hover:text-black transition-colors px-1"
-        >
-          v{__APP_VERSION__}
-          {updateAvailable && (
-            <span className="absolute -right-0 -top-0.5 h-1.5 w-1.5 rounded-full bg-black" />
-          )}
-        </button>
-        <button
-          onClick={onOpenSettings}
-          title="Settings (Ctrl+,)"
-          aria-label="Settings"
-          className="flex h-7 w-7 items-center justify-center text-gray-400 hover:text-black transition-colors"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" />
-          </svg>
-        </button>
-        <button
-          onClick={onOpenShortcuts}
-          title="Shortcuts (?)"
-          aria-label="Shortcuts"
-          className="flex h-7 w-7 items-center justify-center font-mono text-[12px] text-gray-400 hover:text-black transition-colors"
-        >
-          ?
-        </button>
+        <div className="hidden md:flex items-center gap-1">
+          <button
+            onClick={onOpenAbout}
+            title="Version, changelog & updates"
+            className="relative flex items-center font-mono text-[9px] tabular-nums text-gray-300 hover:text-black transition-colors px-1"
+          >
+            v{__APP_VERSION__}
+            {updateAvailable && (
+              <span className="absolute -right-0 -top-0.5 h-1.5 w-1.5 rounded-full bg-black" />
+            )}
+          </button>
+          <button
+            onClick={onOpenSettings}
+            title="Settings (Ctrl+,)"
+            aria-label="Settings"
+            className="flex h-7 w-7 items-center justify-center text-gray-400 hover:text-black transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" />
+            </svg>
+          </button>
+          <button
+            onClick={onOpenShortcuts}
+            title="Shortcuts (?)"
+            aria-label="Shortcuts"
+            className="flex h-7 w-7 items-center justify-center font-mono text-[12px] text-gray-400 hover:text-black transition-colors"
+          >
+            ?
+          </button>
+        </div>
       </div>
 
       {/* Center: game name + save status */}
@@ -174,6 +206,8 @@ export default function TitleBar({ onOpenSettings, onOpenShortcuts, onOpenAbout 
           </svg>
         </button>
       </div>
+      )}
+        </>
       )}
     </div>
   )

@@ -9,6 +9,7 @@ import SettingsPanel from "./components/SettingsPanel"
 import ShortcutsOverlay from "./components/ShortcutsOverlay"
 import AboutModal from "./components/AboutModal"
 import OnboardingModal from "./components/OnboardingModal"
+import MobileSettings from "./components/MobileSettings"
 import { useUpdateStore } from "./stores/useUpdateStore"
 import { useKeyboard } from "./hooks/useKeyboard"
 import { useAutoplay } from "./hooks/useAutoplay"
@@ -18,6 +19,7 @@ import { useGameAnalyzer } from "./hooks/useGameAnalyzer"
 import { useOpeningDetection } from "./hooks/useOpeningDetection"
 import { useTouch } from "./hooks/useTouch"
 import { useSwipe } from "./hooks/useSwipe"
+import { useKeyboardOpen } from "./hooks/useKeyboardOpen"
 import { useGameStore } from "./stores/useGameStore"
 import { useBoardStore } from "./stores/useBoardStore"
 import { useLibraryStore } from "./stores/useLibraryStore"
@@ -66,6 +68,8 @@ export default function App() {
   const [aboutOpen, setAboutOpen] = useState(false)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [panelTab, setPanelTab] = useState<"moves" | "analysis">("moves")
+  // Mobile-only full-screen Settings page (bottom nav). Desktop uses modals.
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false)
   const [restored, setRestored] = useState(false)
 
   const moveInputRef = useRef<HTMLInputElement>(null)
@@ -170,6 +174,7 @@ export default function App() {
         if (aboutOpen) return setAboutOpen(false)
         if (settingsOpen) return setSettingsOpen(false)
         if (shortcutsOpen) return setShortcutsOpen(false)
+        if (mobileSettingsOpen) return setMobileSettingsOpen(false)
         if (libraryOpen) return setLibraryOpen(false)
         useBoardStore.setState({ selectedSquare: null })
       },
@@ -181,6 +186,8 @@ export default function App() {
 
   const touch = useTouch()
   const boardSwipe = useSwipe(goForward, goBack)
+  const keyboardOpen = useKeyboardOpen()
+  const overlayOpenMobile = libraryOpen || mobileSettingsOpen
 
   const navBtn = (active: boolean) =>
     `flex flex-1 flex-col items-center justify-center gap-0.5 py-2 font-mono text-[9px] uppercase tracking-[0.12em] transition-colors ${
@@ -193,6 +200,11 @@ export default function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenShortcuts={() => setShortcutsOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
+        mobileSection={libraryOpen ? "library" : mobileSettingsOpen ? "settings" : null}
+        onMobileBack={() => {
+          setLibraryOpen(false)
+          setMobileSettingsOpen(false)
+        }}
       />
 
       <div className="relative flex flex-1 overflow-hidden min-h-0 pt-[calc(2.25rem+env(safe-area-inset-top))]">
@@ -237,18 +249,35 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {/* Mobile-only full-screen Settings page */}
+        {mobileSettingsOpen && (
+          <div className="absolute inset-0 z-40 bg-white md:hidden">
+            <MobileSettings
+              onErased={() => {
+                setMobileSettingsOpen(false)
+                setPanelTab("moves")
+              }}
+            />
+          </div>
+        )}
       </div>
 
-      <MoveInput inputRef={moveInputRef} engine={engine} />
+      {/* Move input — hidden on mobile while a full-screen overlay is open */}
+      <div className={overlayOpenMobile ? "hidden md:block" : ""}>
+        <MoveInput inputRef={moveInputRef} engine={engine} />
+      </div>
 
-      {/* Mobile bottom navigation */}
-      <nav className="flex shrink-0 border-t border-gray-100 pb-[env(safe-area-inset-bottom)] md:hidden">
+      {/* Mobile bottom navigation — hidden while the keyboard is open (docks the
+          move input above it) */}
+      <nav className={`${keyboardOpen ? "hidden" : "flex"} shrink-0 border-t border-gray-100 pb-[env(safe-area-inset-bottom)] md:hidden`}>
         <button
           onClick={() => {
             setLibraryOpen(false)
+            setMobileSettingsOpen(false)
             setPanelTab("moves")
           }}
-          className={navBtn(!libraryOpen && panelTab === "moves")}
+          className={navBtn(!overlayOpenMobile && panelTab === "moves")}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="4" cy="6" r="0.8" /><circle cx="4" cy="12" r="0.8" /><circle cx="4" cy="18" r="0.8" />
@@ -259,20 +288,40 @@ export default function App() {
         <button
           onClick={() => {
             setLibraryOpen(false)
+            setMobileSettingsOpen(false)
             setPanelTab("analysis")
           }}
-          className={navBtn(!libraryOpen && panelTab === "analysis")}
+          className={navBtn(!overlayOpenMobile && panelTab === "analysis")}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 12 7 12 10 4 14 20 17 12 21 12" />
           </svg>
           Analysis
         </button>
-        <button onClick={() => setLibraryOpen((v) => !v)} className={navBtn(libraryOpen)}>
+        <button
+          onClick={() => {
+            setMobileSettingsOpen(false)
+            setLibraryOpen((v) => !v)
+          }}
+          className={navBtn(libraryOpen)}
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 3 3 8l9 5 9-5-9-5z" /><path d="M3 13l9 5 9-5" />
           </svg>
           Library
+        </button>
+        <button
+          onClick={() => {
+            setLibraryOpen(false)
+            setMobileSettingsOpen((v) => !v)
+          }}
+          className={navBtn(mobileSettingsOpen)}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" />
+          </svg>
+          Settings
         </button>
       </nav>
 

@@ -73,12 +73,13 @@ export default function Library({ open, onToggle }: Props) {
 
   useEffect(() => {
     if (open && searchRef.current) {
-      searchRef.current.focus()
+      // Don't pop the keyboard on touch — only focus search on desktop.
+      if (!touch) searchRef.current.focus()
       setSearch("")
       setSortIdx(0)
       setFilter("all")
     }
-  }, [open])
+  }, [open, touch])
 
   useEffect(() => {
     return () => {
@@ -413,24 +414,26 @@ export default function Library({ open, onToggle }: Props) {
     <div className="relative z-40 flex shrink-0 max-lg:absolute max-lg:inset-y-0 max-lg:left-0">
       <div
         className={`overflow-hidden transition-all duration-200 max-lg:shadow-xl ${
-          open ? "w-56 md:w-60" : "w-0"
+          open ? "w-screen md:w-60" : "w-0"
         }`}
       >
-        <div className="w-56 md:w-60 h-full flex flex-col bg-white">
-          <div className="flex items-center justify-between px-3 py-2">
-            <span className="font-mono text-[9px] md:text-[10px] uppercase tracking-[0.15em] text-gray-400">
+        <div className="w-screen md:w-60 h-full flex flex-col bg-white">
+          {/* On mobile the contextual app bar shows "Library" + back, so this
+              row is just the actions, right-aligned. */}
+          <div className="flex items-center justify-between px-3 py-2 max-md:justify-end">
+            <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.15em] text-gray-400">
               Library
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 md:gap-2">
               <button
                 onClick={() => setStatsOpen(true)}
-                className="font-mono text-[9px] uppercase tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
+                className="font-mono text-[10px] md:text-[9px] uppercase tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
               >
                 Stats
               </button>
               <button
                 onClick={handleNewClick}
-                className="font-mono text-[9px] uppercase tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
+                className="font-mono text-[10px] md:text-[9px] uppercase tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
               >
                 New
               </button>
@@ -445,7 +448,7 @@ export default function Library({ open, onToggle }: Props) {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex-1 font-mono text-[8px] uppercase tracking-[0.12em] py-1.5 transition-colors ${
+                className={`flex-1 font-mono text-[10px] md:text-[8px] uppercase tracking-[0.12em] py-3 md:py-1.5 transition-colors ${
                   tab === t ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
                 }`}
               >
@@ -628,7 +631,7 @@ export default function Library({ open, onToggle }: Props) {
 
       <button
         onClick={onToggle}
-        className="shrink-0 w-5 flex flex-col items-center justify-center hover:bg-gray-50 transition-colors group"
+        className="hidden md:flex shrink-0 w-5 flex-col items-center justify-center hover:bg-gray-50 transition-colors group"
       >
         <span className="font-mono text-sm text-gray-300 group-hover:text-gray-400 select-none leading-none">
           {open ? "◀" : "▶"}

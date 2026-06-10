@@ -50,6 +50,11 @@ jobs:
       - name: Initialize Android project
         run: npx tauri android init --ci
 
+      # Write the bishop launcher icons into the freshly-generated Android res/
+      # (otherwise it ships the default Tauri logo).
+      - name: Generate app icons
+        run: npx tauri icon app-icon.svg
+
       # Debug build is signed with the debug keystore → installable for testing.
       # Use arm64 only for a fast, broadly-compatible build (most modern phones).
       - name: Build APK

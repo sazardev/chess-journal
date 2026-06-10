@@ -190,12 +190,12 @@ export default function App() {
         onOpenAbout={() => setAboutOpen(true)}
       />
 
-      <div className="relative flex flex-1 pt-9 overflow-hidden min-h-0">
+      <div className="relative flex flex-1 overflow-hidden min-h-0 pt-[calc(2.25rem+env(safe-area-inset-top))]">
         <Library open={libraryOpen} onToggle={() => setLibraryOpen((v) => !v)} />
 
         {libraryOpen && (
           <div
-            className="fixed inset-x-0 bottom-0 top-9 z-30 bg-black/20 lg:hidden"
+            className="fixed inset-x-0 bottom-0 top-[calc(2.25rem+env(safe-area-inset-top))] z-30 bg-black/20 lg:hidden"
             onClick={() => setLibraryOpen(false)}
           />
         )}

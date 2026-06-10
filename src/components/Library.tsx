@@ -6,6 +6,7 @@ import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { newGame } from "../lib/session"
+import { useTouch } from "../hooks/useTouch"
 import OpeningStats from "./OpeningStats"
 import { HISTORIC, loadClassics, type ClassicGame, type ClassicCategory } from "../data/classics"
 
@@ -56,6 +57,10 @@ export default function Library({ open, onToggle }: Props) {
   const [classicsSearch, setClassicsSearch] = useState("")
   const [classicsCat, setClassicsCat] = useState<"all" | ClassicCategory>("all")
   const [classicsGames, setClassicsGames] = useState<ClassicGame[]>(HISTORIC)
+
+  const touch = useTouch()
+  // On touch there's no hover — keep row actions visible instead of hover-revealed.
+  const actionVis = touch ? "opacity-100" : "opacity-0 group-hover:opacity-100"
 
   useEffect(() => {
     if (tab === "classics") loadClassics().then(setClassicsGames)
@@ -364,7 +369,7 @@ export default function Library({ open, onToggle }: Props) {
                     e.preventDefault()
                     handleStartEdit(e, entry.id, entry.data.meta.name)
                   }}
-                  className="font-mono text-sm opacity-0 group-hover:opacity-100 text-gray-400 hover:text-black transition-all px-0.5"
+                  className={`font-mono text-sm ${actionVis} text-gray-400 hover:text-black transition-all px-0.5`}
                 >
                   ✎
                 </button>
@@ -374,7 +379,7 @@ export default function Library({ open, onToggle }: Props) {
                   className={`font-mono text-sm transition-all px-0.5 ${
                     entry.favorite
                       ? "text-black"
-                      : "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-black"
+                      : `${actionVis} text-gray-400 hover:text-black`
                   }`}
                 >
                   {entry.favorite ? "♥" : "♡"}
@@ -385,14 +390,14 @@ export default function Library({ open, onToggle }: Props) {
                   className={`font-mono text-sm transition-all px-0.5 ${
                     entry.pinned
                       ? "text-black"
-                      : "opacity-0 group-hover:opacity-100 text-gray-400 hover:text-black"
+                      : `${actionVis} text-gray-400 hover:text-black`
                   }`}
                 >
                   ★
                 </button>
                 <button
                   onClick={(e) => handleDelete(e, entry.id)}
-                  className="font-mono text-sm opacity-0 group-hover:opacity-100 text-gray-400 hover:text-black transition-all px-0.5"
+                  className={`font-mono text-sm ${actionVis} text-gray-400 hover:text-black transition-all px-0.5`}
                 >
                   ×
                 </button>

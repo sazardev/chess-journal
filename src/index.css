@@ -26,9 +26,9 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     user-select: none;
-    /* Respect device safe areas on small/touch screens. */
-    padding: env(safe-area-inset-top) env(safe-area-inset-right)
-      env(safe-area-inset-bottom) env(safe-area-inset-left);
+    /* Native-feeling touch: no pull-to-refresh / rubber-band, no double-tap zoom. */
+    overscroll-behavior: none;
+    touch-action: manipulation;
   }
 
   /* Inputs and textareas must remain selectable. */

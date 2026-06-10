@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Android launcher icon (the bishop) instead of the default Tauri logo.
+- App metadata / SEO — description, keywords, theme-color, Open Graph and mobile-web-app tags; `viewport-fit=cover`.
+
+### Changed
+- Mobile/native pass: desktop window controls are hidden on touch devices, safe-area insets are respected (status & navigation bars), row actions stay visible on touch (no hover needed), and rubber-band scroll / double-tap zoom are disabled for a more native Android feel.
+
 ## [0.1.6] - 2026-06-10
 
 ## [0.1.5] - 2026-06-10

@@ -5,6 +5,7 @@ import { useGameStore } from "../stores/useGameStore"
 import { useLibraryStore } from "../stores/useLibraryStore"
 import { useUpdateStore } from "../stores/useUpdateStore"
 import { toggleCurrentFavorite } from "../lib/session"
+import { useTouch } from "../hooks/useTouch"
 import SaveIndicator from "./SaveIndicator"
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 export default function TitleBar({ onOpenSettings, onOpenShortcuts, onOpenAbout }: Props) {
   const updateAvailable = useUpdateStore((s) => s.status === "available")
   const [maximized, setMaximized] = useState(false)
+  const touch = useTouch()
 
   const name = useMetaStore((s) => s.name)
   const setName = useMetaStore((s) => s.setName)
@@ -56,7 +58,7 @@ export default function TitleBar({ onOpenSettings, onOpenShortcuts, onOpenAbout 
   return (
     <div
       data-tauri-drag-region
-      className="fixed top-0 left-0 right-0 z-50 flex h-9 items-center justify-between bg-white px-2 select-none"
+      className="fixed top-0 left-0 right-0 z-50 flex h-[calc(2.25rem+env(safe-area-inset-top))] items-center justify-between bg-white px-2 pt-[env(safe-area-inset-top)] select-none"
     >
       {/* Left: wordmark + version + tools */}
       <div className="flex items-center gap-1 pl-1">
@@ -137,7 +139,10 @@ export default function TitleBar({ onOpenSettings, onOpenShortcuts, onOpenAbout 
         <SaveIndicator className="shrink-0" />
       </div>
 
-      {/* Right: window controls */}
+      {/* Right: window controls (desktop only) */}
+      {touch ? (
+        <div className="w-2" aria-hidden />
+      ) : (
       <div className="flex items-center">
         <button onClick={minimize} className={winBtn} aria-label="Minimize">
           <svg width="10" height="1" viewBox="0 0 10 1">
@@ -169,6 +174,7 @@ export default function TitleBar({ onOpenSettings, onOpenShortcuts, onOpenAbout 
           </svg>
         </button>
       </div>
+      )}
     </div>
   )
 }

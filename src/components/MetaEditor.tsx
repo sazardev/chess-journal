@@ -1,5 +1,7 @@
 import { useState } from "react"
 import { useMetaStore } from "../stores/useMetaStore"
+import { useOpeningStore } from "../stores/useOpeningStore"
+import type { GameResult, PlayerColor } from "../types/save"
 
 interface MetaEditorProps {
   /** Embedded mode hides the header/Done bar; changes auto-save continuously. */
@@ -13,12 +15,23 @@ export default function MetaEditor({ embedded = false, onSave, onClose }: MetaEd
   const rating = useMetaStore((s) => s.rating)
   const tags = useMetaStore((s) => s.tags)
   const notes = useMetaStore((s) => s.notes)
+  const result = useMetaStore((s) => s.result)
+  const playerColor = useMetaStore((s) => s.playerColor)
   const createdAt = useMetaStore((s) => s.createdAt)
   const updatedAt = useMetaStore((s) => s.updatedAt)
   const setName = useMetaStore((s) => s.setName)
   const setRating = useMetaStore((s) => s.setRating)
   const setTags = useMetaStore((s) => s.setTags)
   const setNotes = useMetaStore((s) => s.setNotes)
+  const setResult = useMetaStore((s) => s.setResult)
+  const setPlayerColor = useMetaStore((s) => s.setPlayerColor)
+
+  const opening = useOpeningStore((s) => s.current)
+
+  const segBtn = (active: boolean) =>
+    `flex-1 font-mono text-[9px] uppercase tracking-[0.08em] py-1.5 transition-colors ${
+      active ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
+    }`
 
   const [tagsInput, setTagsInput] = useState(tags.join(", "))
 
@@ -80,6 +93,49 @@ export default function MetaEditor({ embedded = false, onSave, onClose }: MetaEd
               className="font-mono text-sm transition-colors text-gray-300 hover:text-black"
             >
               {star <= rating ? "\u2605" : "\u2606"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {opening && (
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">Opening</span>
+          <span className="font-mono text-[9px] tabular-nums text-gray-300">{opening.eco}</span>
+          <span className="font-mono text-[10px] text-black truncate">{opening.name}</span>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-1">
+        <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">Result</span>
+        <div className="flex gap-0.5">
+          {([
+            ["1-0", "White"],
+            ["1/2-1/2", "Draw"],
+            ["0-1", "Black"],
+            ["*", "\u2014"],
+          ] as [GameResult, string][]).map(([val, label]) => (
+            <button key={val} onClick={() => setResult(val)} className={segBtn(result === val)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">Your color</span>
+        <div className="flex gap-0.5">
+          {([
+            ["white", "White"],
+            ["black", "Black"],
+            [null, "\u2014"],
+          ] as [PlayerColor, string][]).map(([val, label]) => (
+            <button
+              key={label}
+              onClick={() => setPlayerColor(val)}
+              className={segBtn(playerColor === val)}
+            >
+              {label}
             </button>
           ))}
         </div>

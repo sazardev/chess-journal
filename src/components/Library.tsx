@@ -6,6 +6,7 @@ import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { newGame } from "../lib/session"
+import OpeningStats from "./OpeningStats"
 
 const SORT_LABELS = ["Newest", "Oldest", "A-Z", "Z-A", "Moves ↑", "Moves ↓", "Rating ↑", "Rating ↓"] as const
 
@@ -36,6 +37,7 @@ export default function Library({ open, onToggle }: Props) {
   const [search, setSearch] = useState("")
   const [sortIdx, setSortIdx] = useState(0)
   const [filter, setFilter] = useState<"all" | "pinned" | "favorite">("all")
+  const [statsOpen, setStatsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [deletedEntry, setDeletedEntry] = useState<{ id: string; entry: ReturnType<typeof useLibraryStore.getState>["entries"][0] } | null>(null)
@@ -169,7 +171,8 @@ export default function Library({ open, onToggle }: Props) {
           (e) =>
             e.data.meta.name.toLowerCase().includes(q) ||
             e.data.meta.tags.some((t) => t.toLowerCase().includes(q)) ||
-            e.data.meta.notes.toLowerCase().includes(q),
+            e.data.meta.notes.toLowerCase().includes(q) ||
+            (e.data.meta.opening?.name.toLowerCase().includes(q) ?? false),
         )
       : byFilter
 
@@ -285,6 +288,16 @@ export default function Library({ open, onToggle }: Props) {
                     </span>
                   )}
                 </div>
+                {entry.data.meta.opening && (
+                  <div className="mt-0.5 flex items-center gap-1">
+                    <span className="font-mono text-[7px] tabular-nums text-gray-300">
+                      {entry.data.meta.opening.eco}
+                    </span>
+                    <span className="font-mono text-[8px] text-gray-400 truncate">
+                      {entry.data.meta.opening.name}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-0.5 shrink-0">
                 <button
@@ -346,6 +359,12 @@ export default function Library({ open, onToggle }: Props) {
               Library
             </span>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setStatsOpen(true)}
+                className="font-mono text-[9px] uppercase tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
+              >
+                Stats
+              </button>
               <button
                 onClick={handleNewClick}
                 className="font-mono text-[9px] uppercase tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
@@ -453,6 +472,17 @@ export default function Library({ open, onToggle }: Props) {
           {open ? "◀" : "▶"}
         </span>
       </button>
+
+      {statsOpen && (
+        <OpeningStats
+          onClose={() => setStatsOpen(false)}
+          onSelect={(name) => {
+            setSearch(name)
+            setFilter("all")
+            setStatsOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }

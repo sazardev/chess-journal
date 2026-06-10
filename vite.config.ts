@@ -13,6 +13,11 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
 
+  // The bundled ECO opening database is a lazy-loaded chunk, not initial payload.
+  build: {
+    chunkSizeWarningLimit: 700,
+  },
+
   clearScreen: false,
   server: {
     host: host || false,

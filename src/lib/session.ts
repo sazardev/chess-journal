@@ -1,4 +1,4 @@
-import type { SaveData } from "../types/save"
+import type { SaveData, GameResult } from "../types/save"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
@@ -6,6 +6,7 @@ import { useLibraryStore } from "../stores/useLibraryStore"
 import { useSaveStore } from "../stores/useSaveStore"
 import { usePersistenceStore } from "../stores/usePersistenceStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
+import { getOpeningsCache, detectOpening } from "./openings"
 
 /**
  * Single source of truth for the "auto a biblioteca" save model.
@@ -18,10 +19,29 @@ function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
 }
 
+// Auto-detect the objective result from a checkmating final move (draws stay manual).
+function autoResult(fullHistory: SaveData["game"]["fullHistory"]): GameResult | undefined {
+  const last = fullHistory[fullHistory.length - 1]
+  if (last && last.san.includes("#")) return last.color === "w" ? "1-0" : "0-1"
+  return undefined
+}
+
 export function buildSaveData(): SaveData {
   const g = useGameStore.getState()
   const b = useBoardStore.getState()
   const meta = useMetaStore.getState().snapshot()
+
+  // Auto-tag the opening (from the cached ECO map) and result, without
+  // overwriting anything the user set explicitly.
+  const map = getOpeningsCache()
+  if (map && g.fullHistory.length > 0) {
+    const opening = detectOpening(g.fullHistory, map)
+    if (opening) meta.opening = { eco: opening.eco, name: opening.name, ply: opening.lastBookPly }
+  }
+  if (!meta.result || meta.result === "*") {
+    const auto = autoResult(g.fullHistory)
+    if (auto) meta.result = auto
+  }
 
   return {
     version: 1,

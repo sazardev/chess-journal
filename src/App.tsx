@@ -15,6 +15,7 @@ import { useAutoplay } from "./hooks/useAutoplay"
 import { useAutosave } from "./hooks/useAutosave"
 import { useEngine } from "./hooks/useEngine"
 import { useGameAnalyzer } from "./hooks/useGameAnalyzer"
+import { useOpeningDetection } from "./hooks/useOpeningDetection"
 import { useGameStore } from "./stores/useGameStore"
 import { useBoardStore } from "./stores/useBoardStore"
 import { useLibraryStore } from "./stores/useLibraryStore"
@@ -46,6 +47,7 @@ export default function App() {
   const configSetOrientation = useConfigStore((s) => s.setOrientation)
   const configSetPlaySpeed = useConfigStore((s) => s.setPlaySpeed)
   const configSetLastSeenVersion = useConfigStore((s) => s.setLastSeenVersion)
+  const openingAnalyzer = useConfigStore((s) => s.openingAnalyzer)
 
   const persistenceInit = usePersistenceStore((s) => s.init)
   const persistenceReady = usePersistenceStore((s) => s.ready)
@@ -129,6 +131,7 @@ export default function App() {
   }, [configLoaded, persistenceReady])
 
   useAutosave(restored && persistenceReady)
+  useOpeningDetection(configLoaded && openingAnalyzer)
 
   const closeOnboarding = () => {
     setOnboardingOpen(false)

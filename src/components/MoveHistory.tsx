@@ -1,7 +1,9 @@
 import { useRef, useEffect, useState, useMemo } from "react"
 import { useGameStore } from "../stores/useGameStore"
 import { useAnalysisStore, posKey } from "../stores/useAnalysisStore"
+import { useConfigStore } from "../stores/useConfigStore"
 import { classifyMove, nagColor, type Nag } from "../lib/moveQuality"
+import OpeningChip from "./OpeningChip"
 
 export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }) {
   const history = useGameStore((s) => s.fullHistory)
@@ -23,6 +25,9 @@ export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }
   const markMode = useAnalysisStore((s) => s.markMode)
   const toggleMark = useAnalysisStore((s) => s.toggleMark)
   const byFen = useAnalysisStore((s) => s.byFen)
+
+  const openingAnalyzer = useConfigStore((s) => s.openingAnalyzer)
+  const setOpeningAnalyzer = useConfigStore((s) => s.setOpeningAnalyzer)
 
   const [editingComment, setEditingComment] = useState<number | null>(null)
   const [commentValue, setCommentValue] = useState("")
@@ -97,6 +102,17 @@ export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }
               Marks
             </button>
           )}
+          <button
+            onClick={() => setOpeningAnalyzer(!openingAnalyzer)}
+            title="Detect the opening as you play"
+            className={`font-mono text-[8px] uppercase tracking-[0.1em] px-1.5 py-0.5 transition-colors ${
+              openingAnalyzer
+                ? "bg-black text-white"
+                : "text-gray-400 hover:text-black hover:bg-gray-100"
+            }`}
+          >
+            Opening
+          </button>
         </div>
         <div className="flex items-center gap-0.5 md:gap-1">
           <button
@@ -134,6 +150,8 @@ export default function MoveHistory({ engineOn = false }: { engineOn?: boolean }
           </button>
         </div>
       </div>
+
+      <OpeningChip />
 
       {isPlaying && (
         <div className="flex items-center gap-1.5 px-3 pb-1.5">

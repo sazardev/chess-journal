@@ -1,5 +1,8 @@
 import type { Move } from "chess.js"
 
+export type GameResult = "1-0" | "0-1" | "1/2-1/2" | "*"
+export type PlayerColor = "white" | "black" | null
+
 export interface SaveData {
   version: 1
   meta: {
@@ -9,6 +12,9 @@ export interface SaveData {
     notes: string
     createdAt: string
     updatedAt: string
+    opening?: { eco: string; name: string; ply?: number }
+    result?: GameResult
+    playerColor?: PlayerColor
   }
   game: {
     fullHistory: Move[]

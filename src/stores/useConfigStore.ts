@@ -11,10 +11,12 @@ export interface AppConfig {
 interface ConfigState extends AppConfig {
   loaded: boolean
   lastSeenVersion: string
+  openingAnalyzer: boolean
   init: () => Promise<void>
   setOrientation: (orientation: Orientation) => void
   setPlaySpeed: (ms: number) => void
   setLastSeenVersion: (v: string) => void
+  setOpeningAnalyzer: (on: boolean) => void
 }
 
 export const useConfigStore = create<ConfigState>((set) => {
@@ -32,13 +34,15 @@ export const useConfigStore = create<ConfigState>((set) => {
     playSpeed: 500,
     loaded: false,
     lastSeenVersion: "",
+    openingAnalyzer: true,
 
     init: async () => {
       const st = await ensureStore()
       const orientation = (await st.get<Orientation>("orientation")) ?? "white"
       const playSpeed = (await st.get<number>("playSpeed")) ?? 500
       const lastSeenVersion = (await st.get<string>("lastSeenVersion")) ?? ""
-      set({ orientation, playSpeed, lastSeenVersion, loaded: true })
+      const openingAnalyzer = (await st.get<boolean>("openingAnalyzer")) ?? true
+      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, loaded: true })
     },
 
     setOrientation: async (orientation) => {
@@ -57,6 +61,12 @@ export const useConfigStore = create<ConfigState>((set) => {
       set({ lastSeenVersion })
       const st = await ensureStore()
       await st.set("lastSeenVersion", lastSeenVersion)
+    },
+
+    setOpeningAnalyzer: async (openingAnalyzer) => {
+      set({ openingAnalyzer })
+      const st = await ensureStore()
+      await st.set("openingAnalyzer", openingAnalyzer)
     },
   }
 })

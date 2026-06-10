@@ -1,73 +1,74 @@
-# React + TypeScript + Vite
+<div align="center">
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+<img src="src-tauri/icons/128x128.png" width="84" alt="Chess Mini" />
 
-Currently, two official plugins are available:
+# Chess Mini
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**A fast, minimalist desktop app to record, analyze and review your chess games.**
 
-## React Compiler
+[![Release](https://img.shields.io/github/v/release/sazardev/chess-mini?style=flat-square&label=release)](https://github.com/sazardev/chess-mini/releases/latest)
+[![Build](https://img.shields.io/github/actions/workflow/status/sazardev/chess-mini/release.yml?style=flat-square&label=build)](https://github.com/sazardev/chess-mini/actions/workflows/release.yml)
+[![Downloads](https://img.shields.io/github/downloads/sazardev/chess-mini/total?style=flat-square)](https://github.com/sazardev/chess-mini/releases)
+![Platform](https://img.shields.io/badge/platform-Windows-black?style=flat-square)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### [⬇ Download the latest installer](https://github.com/sazardev/chess-mini/releases/latest)
 
-## Expanding the ESLint configuration
+</div>
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Chess Mini is built for people who already play chess and like a clean,
+keyboard-first tool — engine analysis, move-quality marks, annotations and a
+searchable game library, with everything saved automatically.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Features
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **Continuous autosave** — every game with moves lives in the library and updates on each move; nothing to remember.
+- **Engine analysis** — Stockfish eval bar, best line, candidate moves and a clean, coherent heatmap.
+- **Move-quality marks** — `!! ! ?! ? ??` in the move list, live as you browse or via a one-shot whole-game analyzer.
+- **Move input with autocomplete** — type SAN with legal-move suggestions and live eval hints.
+- **Library** — search, sort, favorites (♥) and pins (★), with quick load.
+- **Annotations** — arrows, highlights, bookmarks and per-move comments.
+- **Import / export** — FEN, PGN and JSON; export the board as PNG.
+- **Responsive** — tuned for desktop, tablet and small windows.
+- **Auto-updates** — checks GitHub on launch and updates itself in one click.
+
+## Keyboard shortcuts
+
+| Action | Keys | | Action | Keys |
+| --- | --- | --- | --- | --- |
+| Prev / next move | `←` `→` | | Save now | `Ctrl S` |
+| Start / end | `Ctrl Home` `Ctrl End` | | New game | `Ctrl N` |
+| Play / pause | `Space` | | Toggle favorite | `Ctrl D` |
+| Flip board | `Ctrl B` | | Toggle library | `Ctrl L` |
+| Arrow / mark mode | `Ctrl A` `Ctrl M` | | Settings | `Ctrl ,` |
+| Focus move input | `Ctrl I` | | Shortcuts | `?` |
+
+Press `?` in the app for the full list.
+
+## Tech stack
+
+[Tauri 2](https://v2.tauri.app/) · [React 19](https://react.dev/) · TypeScript ·
+[Zustand](https://github.com/pmndrs/zustand) · [chess.js](https://github.com/jhlywa/chess.js) ·
+[Stockfish](https://stockfishchess.org/) · [Tailwind CSS](https://tailwindcss.com/)
+
+## Development
+
+```bash
+npm install
+npm run tauri dev      # run the desktop app (hot reload)
+npm run dev            # or just the web frontend
+npm run build          # typecheck + build the frontend
+npm run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Building & releasing
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Releases are produced by the **Release** GitHub Action (Windows NSIS installer +
+signed auto-update manifest). To cut one: **Actions → Release → Run workflow** and
+pick a version bump. See [`RELEASING.md`](RELEASING.md) for the full process and the
+one-time signing-key setup.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## License
+
+Not yet specified.

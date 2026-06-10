@@ -6,6 +6,8 @@ import { useMetaStore } from "../stores/useMetaStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useSaveStore } from "../stores/useSaveStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
+import { usePuzzleStore } from "../stores/usePuzzleStore"
+import { usePuzzleProgressStore } from "../stores/usePuzzleProgressStore"
 
 type Action = "library" | "autosave" | "all"
 
@@ -31,12 +33,14 @@ export default function DataActions({ onErased }: { onErased?: () => void }) {
       } else {
         // Reset the working game FIRST so nothing gets re-committed into the
         // library we're about to wipe.
+        usePuzzleStore.getState().exit()
         useGameStore.getState().reset()
         useMetaStore.getState().reset()
         useBoardStore.getState().clearAll()
         useAnalysisStore.getState().clear()
         await usePersistenceStore.getState().clearAll()
         useLibraryStore.setState({ entries: [] })
+        usePuzzleProgressStore.setState({ progress: {} })
         useSaveStore.getState().markIdle()
       }
       setBusy(false)

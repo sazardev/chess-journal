@@ -1,8 +1,10 @@
 import { create } from "zustand"
 import type { SaveData } from "../types/save"
+import type { PuzzleProgress } from "./usePuzzleProgressStore"
 
 const AUTOSAVE = "autosave.json"
 const LIBRARY = "library.json"
+const PUZZLE_PROGRESS = "puzzle-progress.json"
 
 interface PersistenceState {
   ready: boolean
@@ -14,6 +16,8 @@ interface PersistenceState {
   clearAutosave: () => Promise<void>
   writeLibrary: (entries: { id: string; data: SaveData; savedAt: string }[]) => Promise<void>
   readLibrary: () => Promise<{ id: string; data: SaveData; savedAt: string }[]>
+  writePuzzleProgress: (progress: PuzzleProgress) => Promise<void>
+  readPuzzleProgress: () => Promise<PuzzleProgress>
   clearAll: () => Promise<void>
 }
 
@@ -160,6 +164,40 @@ export const usePersistenceStore = create<PersistenceState>((set, get) => ({
     return localGet<{ id: string; data: SaveData; savedAt: string }[]>("library", [])
   },
 
+  writePuzzleProgress: async (progress) => {
+    const { dataDir } = get()
+    const json = JSON.stringify(progress)
+
+    if (dataDir !== "__local__") {
+      try {
+        const { writeTextFile } = await import("@tauri-apps/plugin-fs")
+        await writeTextFile(`${dataDir}/${PUZZLE_PROGRESS}`, json)
+        return
+      } catch { /* ignore */ }
+    }
+
+    localSet("puzzle-progress", progress)
+  },
+
+  readPuzzleProgress: async () => {
+    const { dataDir } = get()
+
+    if (dataDir !== "__local__") {
+      try {
+        const { exists, readTextFile } = await import("@tauri-apps/plugin-fs")
+        const path = `${dataDir}/${PUZZLE_PROGRESS}`
+        const fileExists = await exists(path)
+        if (fileExists) {
+          const raw = await readTextFile(path)
+          const data = JSON.parse(raw)
+          if (data && typeof data === "object") return data as PuzzleProgress
+        }
+      } catch { /* ignore */ }
+    }
+
+    return localGet<PuzzleProgress>("puzzle-progress", {})
+  },
+
   clearAll: async () => {
     const { dataDir } = get()
 
@@ -168,6 +206,7 @@ export const usePersistenceStore = create<PersistenceState>((set, get) => ({
         const { writeTextFile } = await import("@tauri-apps/plugin-fs")
         await writeTextFile(`${dataDir}/${AUTOSAVE}`, "null")
         await writeTextFile(`${dataDir}/${LIBRARY}`, "[]")
+        await writeTextFile(`${dataDir}/${PUZZLE_PROGRESS}`, "{}")
         return
       } catch { /* ignore */ }
     }
@@ -175,6 +214,7 @@ export const usePersistenceStore = create<PersistenceState>((set, get) => ({
     try {
       localStorage.removeItem("chess-mini-autosave")
       localStorage.removeItem("chess-mini-library")
+      localStorage.removeItem("chess-mini-puzzle-progress")
     } catch { /* ignore */ }
   },
 }))

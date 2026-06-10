@@ -1,11 +1,8 @@
 import { useCallback, useRef, useState } from "react"
 import { useGameStore } from "../stores/useGameStore"
 import { useAnalysisStore, posKey } from "../stores/useAnalysisStore"
+import { useConfigStore } from "../stores/useConfigStore"
 import { toWhiteEval, MATE_BASE, type PlyEval } from "../lib/moveQuality"
-
-// Depth for the one-shot whole-game scan. Lower than the live engine (16) so a
-// full game finishes in a few seconds; still plenty for move-quality verdicts.
-const SCAN_DEPTH = 14
 
 interface MpvLine {
   score: number
@@ -104,6 +101,9 @@ export function useGameAnalyzer() {
     const { fullHistory } = useGameStore.getState()
     if (fullHistory.length === 0) return
 
+    const cfg = useConfigStore.getState().engineConfig
+    const scanDepth = cfg.scanDepth
+
     // Unique positions: start + after every move.
     const seen = new Set<string>()
     const positions: string[] = []
@@ -132,15 +132,15 @@ export function useGameAnalyzer() {
       return
     }
     worker.postMessage("setoption name MultiPV value 2")
-    worker.postMessage("setoption name Threads value 1")
-    worker.postMessage("setoption name Hash value 16")
+    worker.postMessage("setoption name Threads value " + cfg.threads)
+    worker.postMessage("setoption name Hash value " + cfg.hash)
 
     for (let i = 0; i < positions.length; i++) {
       if (cancelRef.current) break
       const fen = positions[i]
       const existing = useAnalysisStore.getState().byFen[posKey(fen)]
-      if (!existing || existing.depth < SCAN_DEPTH) {
-        const result = await analyzePosition(worker, fen, SCAN_DEPTH)
+      if (!existing || existing.depth < scanDepth) {
+        const result = await analyzePosition(worker, fen, scanDepth)
         if (result) useAnalysisStore.getState().record(fen, result)
       }
       setDone(i + 1)

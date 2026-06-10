@@ -2,6 +2,37 @@ import { create } from "zustand"
 import { load } from "@tauri-apps/plugin-store"
 
 export type Orientation = "white" | "black"
+export type EnginePresetId = "eco" | "fast" | "balanced" | "deep" | "max"
+
+export interface EngineConfig {
+  preset: EnginePresetId
+  threads: number
+  hash: number
+  multiPV: number
+  depth: number
+  scanDepth: number
+}
+
+export const ENGINE_PRESETS: Record<EnginePresetId, { label: string; threads: number; hash: number; multiPV: number; depth: number; scanDepth: number }> = {
+  eco:       { label: "Eco",       threads: 1, hash: 16,  multiPV: 4, depth: 10, scanDepth: 8  },
+  fast:      { label: "Fast",      threads: 1, hash: 32,  multiPV: 6, depth: 14, scanDepth: 12 },
+  balanced:  { label: "Balanced",  threads: 2, hash: 64,  multiPV: 8, depth: 18, scanDepth: 14 },
+  deep:      { label: "Deep",      threads: 4, hash: 128, multiPV: 8, depth: 24, scanDepth: 18 },
+  max:       { label: "Max",       threads: 0, hash: 256, multiPV: 8, depth: 99, scanDepth: 24 },
+}
+
+export function resolveEngineConfig(preset: EnginePresetId): EngineConfig {
+  const p = ENGINE_PRESETS[preset]
+  const cores = (typeof navigator !== "undefined" ? navigator.hardwareConcurrency : undefined) ?? 4
+  return {
+    preset,
+    threads: p.threads === 0 ? cores : p.threads,
+    hash: p.hash,
+    multiPV: p.multiPV,
+    depth: p.depth,
+    scanDepth: p.scanDepth,
+  }
+}
 
 export interface AppConfig {
   orientation: Orientation
@@ -12,11 +43,13 @@ interface ConfigState extends AppConfig {
   loaded: boolean
   lastSeenVersion: string
   openingAnalyzer: boolean
+  engineConfig: EngineConfig
   init: () => Promise<void>
   setOrientation: (orientation: Orientation) => void
   setPlaySpeed: (ms: number) => void
   setLastSeenVersion: (v: string) => void
   setOpeningAnalyzer: (on: boolean) => void
+  setEnginePreset: (preset: EnginePresetId) => void
 }
 
 export const useConfigStore = create<ConfigState>((set) => {
@@ -35,6 +68,7 @@ export const useConfigStore = create<ConfigState>((set) => {
     loaded: false,
     lastSeenVersion: "",
     openingAnalyzer: true,
+    engineConfig: resolveEngineConfig("balanced"),
 
     init: async () => {
       const st = await ensureStore()
@@ -42,7 +76,9 @@ export const useConfigStore = create<ConfigState>((set) => {
       const playSpeed = (await st.get<number>("playSpeed")) ?? 500
       const lastSeenVersion = (await st.get<string>("lastSeenVersion")) ?? ""
       const openingAnalyzer = (await st.get<boolean>("openingAnalyzer")) ?? true
-      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, loaded: true })
+      const enginePreset = (await st.get<EnginePresetId>("enginePreset")) ?? "balanced"
+      const engineConfig = resolveEngineConfig(enginePreset)
+      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, engineConfig, loaded: true })
     },
 
     setOrientation: async (orientation) => {
@@ -67,6 +103,13 @@ export const useConfigStore = create<ConfigState>((set) => {
       set({ openingAnalyzer })
       const st = await ensureStore()
       await st.set("openingAnalyzer", openingAnalyzer)
+    },
+
+    setEnginePreset: async (preset) => {
+      const engineConfig = resolveEngineConfig(preset)
+      set({ engineConfig })
+      const st = await ensureStore()
+      await st.set("enginePreset", preset)
     },
   }
 })

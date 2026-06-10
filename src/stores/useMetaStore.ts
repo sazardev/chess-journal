@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import type { SaveData, GameResult, PlayerColor } from "../types/save"
+import { randomGameName } from "../lib/session"
 
 interface MetaState {
   name: string
@@ -31,7 +32,7 @@ const defaults = (): {
   createdAt: string
   updatedAt: string
 } => ({
-  name: "Untitled",
+  name: randomGameName(),
   rating: 0,
   tags: [],
   notes: "",

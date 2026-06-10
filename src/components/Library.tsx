@@ -8,6 +8,9 @@ import { useMetaStore } from "../stores/useMetaStore"
 import { newGame } from "../lib/session"
 import { useTouch } from "../hooks/useTouch"
 import OpeningStats from "./OpeningStats"
+import PuzzleList from "./PuzzleList"
+import { usePuzzleStore } from "../stores/usePuzzleStore"
+import type { Puzzle } from "../data/puzzles"
 import { HISTORIC, loadClassics, type ClassicGame, type ClassicCategory } from "../data/classics"
 
 const CAT_ORDER: ClassicCategory[] = ["historic", "bullet", "blitz", "rapid", "classical"]
@@ -53,7 +56,7 @@ export default function Library({ open, onToggle }: Props) {
   const [sortIdx, setSortIdx] = useState(0)
   const [filter, setFilter] = useState<"all" | "pinned" | "favorite">("all")
   const [statsOpen, setStatsOpen] = useState(false)
-  const [tab, setTab] = useState<"mine" | "classics">("mine")
+  const [tab, setTab] = useState<"mine" | "classics" | "puzzles">("mine")
   const [classicsSearch, setClassicsSearch] = useState("")
   const [classicsCat, setClassicsCat] = useState<"all" | ClassicCategory>("all")
   const [classicsGames, setClassicsGames] = useState<ClassicGame[]>(HISTORIC)
@@ -144,7 +147,7 @@ export default function Library({ open, onToggle }: Props) {
     (e: React.MouseEvent, id: string, name: string) => {
       e.stopPropagation()
       setEditingId(id)
-      setEditValue(name === "Untitled" ? "" : name)
+      setEditValue(name)
     },
     [],
   )
@@ -203,6 +206,14 @@ export default function Library({ open, onToggle }: Props) {
     setLoadedId(g.id)
     setTimeout(() => setLoadedId(null), 1200)
   }, [])
+
+  const handleStartPuzzle = useCallback(
+    (queue: Puzzle[], index: number) => {
+      usePuzzleStore.getState().load(queue, index)
+      if (open) onToggle() // close the drawer so the board takes the space
+    },
+    [open, onToggle],
+  )
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
@@ -414,10 +425,10 @@ export default function Library({ open, onToggle }: Props) {
     <div className="relative z-40 flex shrink-0 max-lg:absolute max-lg:inset-y-0 max-lg:left-0">
       <div
         className={`overflow-hidden transition-all duration-200 max-lg:shadow-xl ${
-          open ? "w-screen md:w-60" : "w-0"
+          open ? "w-screen md:w-72 lg:w-80" : "w-0"
         }`}
       >
-        <div className="w-screen md:w-60 h-full flex flex-col bg-white">
+        <div className="w-screen md:w-72 lg:w-80 h-full flex flex-col bg-white">
           {/* On mobile the contextual app bar shows "Library" + back, so this
               row is just the actions, right-aligned. */}
           <div className="flex items-center justify-between px-3 py-2 max-md:justify-end">
@@ -444,7 +455,7 @@ export default function Library({ open, onToggle }: Props) {
           </div>
 
           <div className="flex border-y border-gray-100">
-            {(["mine", "classics"] as const).map((t) => (
+            {(["mine", "classics", "puzzles"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -452,7 +463,7 @@ export default function Library({ open, onToggle }: Props) {
                   tab === t ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
                 }`}
               >
-                {t === "mine" ? "My games" : "Classics"}
+                {t === "mine" ? "My games" : t === "classics" ? "Classics" : "Puzzles"}
               </button>
             ))}
           </div>
@@ -626,6 +637,8 @@ export default function Library({ open, onToggle }: Props) {
             </div>
           </div>
           )}
+
+          {tab === "puzzles" && <PuzzleList onStart={handleStartPuzzle} />}
         </div>
       </div>
 

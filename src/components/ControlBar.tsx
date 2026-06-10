@@ -5,7 +5,7 @@ import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
-import { useConfigStore } from "../stores/useConfigStore"
+import { useConfigStore, ENGINE_PRESETS, type EnginePresetId } from "../stores/useConfigStore"
 import { buildSaveData } from "../lib/session"
 import { candidateColor } from "../lib/heatmap"
 import { saveTextFile, fileStem } from "../lib/exporters"
@@ -51,6 +51,8 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
 
   const openingAnalyzer = useConfigStore((s) => s.openingAnalyzer)
   const setOpeningAnalyzer = useConfigStore((s) => s.setOpeningAnalyzer)
+  const enginePreset = useConfigStore((s) => s.engineConfig.preset)
+  const setEnginePreset = useConfigStore((s) => s.setEnginePreset)
 
   const fen = useGameStore((s) => s.fen)
   const moveCount = useGameStore((s) => s.fullHistory.length)
@@ -233,6 +235,29 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
         >
           Visual {visualMode ? "On" : "Off"}
         </button>
+      )}
+
+      {engineOn && (
+        <div className="flex flex-col gap-1">
+          <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+            Preset
+          </span>
+          <div className="flex gap-0.5">
+            {(Object.keys(ENGINE_PRESETS) as EnginePresetId[]).map((id) => (
+              <button
+                key={id}
+                onClick={() => setEnginePreset(id)}
+                className={`flex-1 font-mono text-[10px] md:text-[9px] uppercase tracking-[0.1em] py-2 md:py-1.5 transition-colors ${
+                  id === enginePreset
+                    ? "bg-black text-white"
+                    : "text-gray-400 hover:text-black hover:bg-gray-100"
+                }`}
+              >
+                {ENGINE_PRESETS[id].label}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {engineOn && eval_.depth > 0 && (

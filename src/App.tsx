@@ -10,6 +10,7 @@ import ShortcutsOverlay from "./components/ShortcutsOverlay"
 import AboutModal from "./components/AboutModal"
 import OnboardingModal from "./components/OnboardingModal"
 import MobileSettings from "./components/MobileSettings"
+import PuzzlePanel from "./components/PuzzlePanel"
 import { useUpdateStore } from "./stores/useUpdateStore"
 import { useKeyboard } from "./hooks/useKeyboard"
 import { useAutoplay } from "./hooks/useAutoplay"
@@ -26,6 +27,8 @@ import { useLibraryStore } from "./stores/useLibraryStore"
 import { useMetaStore } from "./stores/useMetaStore"
 import { useConfigStore } from "./stores/useConfigStore"
 import { usePersistenceStore } from "./stores/usePersistenceStore"
+import { usePuzzleStore } from "./stores/usePuzzleStore"
+import { usePuzzleProgressStore } from "./stores/usePuzzleProgressStore"
 import { newGame, saveNow, toggleCurrentFavorite } from "./lib/session"
 import type { Square } from "chess.js"
 
@@ -58,6 +61,8 @@ export default function App() {
   const readAutosave = usePersistenceStore((s) => s.readAutosave)
 
   const loadLibrary = useLibraryStore((s) => s.loadFromStorage)
+  const loadPuzzleProgress = usePuzzleProgressStore((s) => s.load)
+  const puzzleActive = usePuzzleStore((s) => s.active)
 
   const engine = useEngine()
   const analyzer = useGameAnalyzer()
@@ -85,6 +90,7 @@ export default function App() {
   useEffect(() => {
     if (!persistenceReady) return
     loadLibrary()
+    loadPuzzleProgress()
   }, [persistenceReady])
 
   useEffect(() => {
@@ -146,8 +152,12 @@ export default function App() {
 
   useKeyboard(
     {
-      ArrowLeft: () => goBack(),
-      ArrowRight: () => goForward(),
+      ArrowLeft: () => {
+        if (!puzzleActive) goBack()
+      },
+      ArrowRight: () => {
+        if (!puzzleActive) goForward()
+      },
       "Ctrl+Home": () => goToStart(),
       "Ctrl+End": () => goToEnd(),
       "Ctrl+z": () => undo(),
@@ -155,7 +165,9 @@ export default function App() {
       "Ctrl+n": () => newGame(),
       "Ctrl+s": () => saveNow(),
       "Ctrl+d": () => toggleCurrentFavorite(),
-      " ": () => togglePlay(),
+      " ": () => {
+        if (!puzzleActive) togglePlay()
+      },
       "Ctrl+a": () => toggleAnnotationMode("arrow"),
       "Ctrl+m": () => toggleAnnotationMode("highlight"),
       "Ctrl+x": () => clearAll(),
@@ -176,6 +188,7 @@ export default function App() {
         if (shortcutsOpen) return setShortcutsOpen(false)
         if (mobileSettingsOpen) return setMobileSettingsOpen(false)
         if (libraryOpen) return setLibraryOpen(false)
+        if (puzzleActive) return usePuzzleStore.getState().exit()
         useBoardStore.setState({ selectedSquare: null })
       },
     },
@@ -221,24 +234,32 @@ export default function App() {
           {/* Board (swipe left/right to step through moves on touch) */}
           <div
             className="flex h-[52vh] h-[52dvh] shrink-0 items-center justify-center p-2 md:h-auto md:min-h-0 md:flex-[2] md:p-4"
-            {...(touch ? boardSwipe : {})}
+            {...(touch && !puzzleActive ? boardSwipe : {})}
           >
             <Board engine={engine} />
           </div>
 
-          {/* Desktop side panel */}
+          {/* Desktop side panel — replaced by the puzzle panel while solving */}
           <div className="hidden min-h-0 shrink-0 flex-col border-l border-gray-100 md:flex md:w-56 lg:w-64">
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <MoveHistory />
-            </div>
-            <div className="shrink-0 border-t border-gray-100">
-              <ControlBar engine={engine} analyzer={analyzer} />
-            </div>
+            {puzzleActive ? (
+              <PuzzlePanel />
+            ) : (
+              <>
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <MoveHistory />
+                </div>
+                <div className="shrink-0 border-t border-gray-100">
+                  <ControlBar engine={engine} analyzer={analyzer} />
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Mobile panel — switched by the bottom nav */}
+          {/* Mobile panel — switched by the bottom nav (puzzle takes over while solving) */}
           <div className="flex min-h-0 flex-1 flex-col border-t border-gray-100 md:hidden">
-            {panelTab === "moves" ? (
+            {puzzleActive ? (
+              <PuzzlePanel />
+            ) : panelTab === "moves" ? (
               <div className="min-h-0 flex-1 overflow-hidden">
                 <MoveHistory />
               </div>
@@ -263,10 +284,13 @@ export default function App() {
         )}
       </div>
 
-      {/* Move input — hidden on mobile while a full-screen overlay is open */}
-      <div className={overlayOpenMobile ? "hidden md:block" : ""}>
-        <MoveInput inputRef={moveInputRef} engine={engine} />
-      </div>
+      {/* Move input — hidden on mobile while a full-screen overlay is open, and
+          entirely while solving a puzzle (puzzle moves go through the board) */}
+      {!puzzleActive && (
+        <div className={overlayOpenMobile ? "hidden md:block" : ""}>
+          <MoveInput inputRef={moveInputRef} engine={engine} />
+        </div>
+      )}
 
       {/* Mobile bottom navigation — hidden while the keyboard is open (docks the
           move input above it) */}
@@ -319,7 +343,7 @@ export default function App() {
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
           Settings
         </button>

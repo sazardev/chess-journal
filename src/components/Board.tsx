@@ -3,6 +3,7 @@ import { Chessboard, type ChessboardOptions } from "react-chessboard"
 import type { Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
+import { usePuzzleStore } from "../stores/usePuzzleStore"
 import EvalBar from "./EvalBar"
 import { computeHeatmap } from "../lib/heatmap"
 import type { useEngine } from "../hooks/useEngine"
@@ -16,9 +17,21 @@ const DARK_SQUARE = "#b0b0b0"
 
 export default function Board({ engine }: { engine: ReturnType<typeof useEngine> }) {
   const { eval_, enabled: engineOn, loading: engineLoading, visualMode, candidates } = engine
-  const fen = useGameStore((s) => s.fen)
-  const orientation = useGameStore((s) => s.orientation)
+  const gameFen = useGameStore((s) => s.fen)
+  const gameOrientation = useGameStore((s) => s.orientation)
   const makeMove = useGameStore((s) => s.makeMove)
+
+  // Puzzle mode reuses this board but drives its own position and move handler.
+  const puzzleActive = usePuzzleStore((s) => s.active)
+  const puzzleFen = usePuzzleStore((s) => s.fen)
+  const puzzleOrientation = usePuzzleStore((s) => s.orientation)
+  const attemptMove = usePuzzleStore((s) => s.attemptMove)
+  const feedback = usePuzzleStore((s) => s.feedback)
+  const feedbackSquare = usePuzzleStore((s) => s.feedbackSquare)
+
+  const fen = puzzleActive ? puzzleFen : gameFen
+  const orientation = puzzleActive ? puzzleOrientation : gameOrientation
+  const showEngine = engineOn && !puzzleActive
 
   const selectedSquare = useBoardStore((s) => s.selectedSquare)
   const selectSquare = useBoardStore((s) => s.selectSquare)
@@ -64,35 +77,49 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
 
   const heat = useMemo(
     () =>
-      visualMode && candidates.length > 0
+      visualMode && candidates.length > 0 && !puzzleActive
         ? computeHeatmap(candidates)
         : { squareStyles: {}, arrows: [] },
-    [visualMode, candidates],
+    [visualMode, candidates, puzzleActive],
   )
 
   const boardArrows = useMemo(
-    () => [
-      ...arrows.map((a) => ({
-        startSquare: a.from,
-        endSquare: a.to,
-        color: a.color,
-      })),
-      ...heat.arrows,
-    ],
-    [arrows, heat],
+    () =>
+      puzzleActive
+        ? []
+        : [
+            ...arrows.map((a) => ({
+              startSquare: a.from,
+              endSquare: a.to,
+              color: a.color,
+            })),
+            ...heat.arrows,
+          ],
+    [arrows, heat, puzzleActive],
   )
 
   const onPieceDrop = useCallback(
     (args: { piece: unknown; sourceSquare: string; targetSquare: string | null }) => {
       if (!args.targetSquare) return false
+      if (puzzleActive) return attemptMove(args.sourceSquare as Square, args.targetSquare as Square)
       return makeMove(args.sourceSquare as Square, args.targetSquare as Square)
     },
-    [makeMove],
+    [makeMove, puzzleActive, attemptMove],
   )
 
   const onSquareClick = useCallback(
     (args: { piece: unknown; square: string }) => {
       const square = args.square as Square
+
+      if (puzzleActive) {
+        if (!selectedSquare) {
+          selectSquare(square)
+        } else {
+          const moved = attemptMove(selectedSquare, square)
+          selectSquare(moved ? null : square)
+        }
+        return
+      }
 
       if (annotationMode === "highlight") {
         highlightSquare(square, TEXT)
@@ -119,7 +146,7 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
         }
       }
     },
-    [selectedSquare, annotationMode, makeMove, selectSquare, addArrow, highlightSquare],
+    [selectedSquare, annotationMode, makeMove, selectSquare, addArrow, highlightSquare, puzzleActive, attemptMove],
   )
 
   const squareStyles = useMemo(() => {
@@ -130,9 +157,12 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
       styles[square] = { ...style }
     }
 
-    for (const [square, color] of Object.entries(highlights)) {
-      styles[square] = {
-        backgroundColor: `${color}33`,
+    // User annotations don't belong to a puzzle position.
+    if (!puzzleActive) {
+      for (const [square, color] of Object.entries(highlights)) {
+        styles[square] = {
+          backgroundColor: `${color}33`,
+        }
       }
     }
 
@@ -143,8 +173,16 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
       }
     }
 
+    // Puzzle move feedback: red on a wrong attempt, dark on a correct one.
+    if (puzzleActive && feedbackSquare && feedback !== "none") {
+      styles[feedbackSquare] = {
+        ...styles[feedbackSquare],
+        backgroundColor: feedback === "wrong" ? "rgba(220, 38, 38, 0.45)" : "rgba(0, 0, 0, 0.22)",
+      }
+    }
+
     return styles
-  }, [highlights, selectedSquare, heat])
+  }, [highlights, selectedSquare, heat, puzzleActive, feedback, feedbackSquare])
 
   const options: ChessboardOptions = {
     id: "chess-mini",
@@ -181,14 +219,14 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
           ))}
         </div>
 
-        {engineOn && (
+        {showEngine && (
           <EvalBar
             score={eval_.score}
             mate={eval_.mate}
             height={boardSize}
           />
         )}
-        {engineLoading && (
+        {showEngine && engineLoading && (
           <div className="w-2 shrink-0 flex items-center justify-center" style={{ height: boardSize }}>
             <div className="w-1 h-1 rounded-full bg-gray-300 animate-pulse" />
           </div>

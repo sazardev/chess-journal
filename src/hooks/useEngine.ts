@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { useGameStore } from "../stores/useGameStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
+import { useConfigStore } from "../stores/useConfigStore"
 import { toWhiteEval, MATE_BASE } from "../lib/moveQuality"
 
 export interface EvalResult {
@@ -34,6 +35,8 @@ export function useEngine() {
   const currentFen = useGameStore((s) => s.fen)
   fenRef.current = currentFen
 
+  const enginePreset = useConfigStore((s) => s.engineConfig.preset)
+
   useEffect(() => {
     if (!enabled) {
       if (workerRef.current) {
@@ -51,6 +54,7 @@ export function useEngine() {
 
     setLoading(true)
 
+    const cfg = useConfigStore.getState().engineConfig
     const worker = new Worker("/stockfish-engine.js")
     workerRef.current = worker
 
@@ -63,7 +67,7 @@ export function useEngine() {
       if (line === "uciok") {
         setReady(true)
         setLoading(false)
-        worker.postMessage("setoption name MultiPV value 8")
+        worker.postMessage("setoption name MultiPV value " + cfg.multiPV)
         return
       }
 
@@ -117,14 +121,14 @@ export function useEngine() {
     }
 
     worker.postMessage("uci")
-    worker.postMessage("setoption name Threads value 1")
-    worker.postMessage("setoption name Hash value 16")
+    worker.postMessage("setoption name Threads value " + cfg.threads)
+    worker.postMessage("setoption name Hash value " + cfg.hash)
 
     return () => {
       worker.terminate()
       workerRef.current = null
     }
-  }, [enabled])
+  }, [enabled, enginePreset])
 
   useEffect(() => {
     if (!enabled || !ready || !workerRef.current) return
@@ -138,8 +142,9 @@ export function useEngine() {
 
     const timer = setTimeout(() => {
       if (!enabledRef.current) return
+      const cfg = useConfigStore.getState().engineConfig
       w.postMessage("position fen " + fenRef.current)
-      w.postMessage("go depth 16")
+      w.postMessage("go depth " + cfg.depth)
       searchingRef.current = true
     }, 80)
 

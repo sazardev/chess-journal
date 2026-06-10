@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Puzzles** — a new exercise mode in the Library (its own tab; the drawer is wider on desktop). A bank of classic checkmate puzzles (mate in one, two or three) drawn from famous games — Morphy's Opera Mate, the Immortal, the Evergreen, Légal's Mate, Fischer's "Game of the Century" — plus fundamental mating patterns. Solve them on the usual board (drag or click) with immediate right/wrong feedback as the opponent answers; each shows its objective and side to move, with no move hints.
+- Puzzle tracking — a live timer, mistake counter and step counter while solving; solved puzzles are marked, and your best time, fewest mistakes and "clean" (no-mistake) solves are saved. Filter the list by difficulty or solved / unsolved.
+- Engine presets — pick Eco, Fast, Balanced, Deep or Max to trade speed for strength; live analysis and the whole-game scan use the preset's threads, hash, lines and depth, and the choice is remembered.
+- Friendlier default game names — new games are named after tournaments and chess motifs (Tata Steel, Zugzwang, Greek Gift…) instead of "Untitled".
+
 ## [0.1.10] - 2026-06-10
 
 ## [0.1.9] - 2026-06-10

@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-10
+
 ### Added
 - Opening detection — bundled ECO database (offline) names the opening as you play, with an "out of book" marker. Toggle in the History header.
 - Per-opening stats — your games are auto-tagged by opening; a Stats view shows games, W/L/D (set result + your color in a game's Advanced panel) and where you leave theory. Click an opening to filter the library.

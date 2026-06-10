@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-06-10
+
 ### Added
 - Classics — a bundled library of legendary games (Opera, Immortal, Evergreen, Game of the Century, Légal's Mate). New "Classics" tab in the library; loading one is a preview that never clutters your own games.
 

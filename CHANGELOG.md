@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-06-10
+
 ### Added
 - Mobile Settings page (a 4th bottom-nav item) holding version/updates, data management and the shortcut reference — moved off the title bar.
 - Contextual mobile app bar: opening Library or Settings shows a back arrow and the section name instead of the game title.

@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-06-10
+
 ### Added
 - Richer Classics screen — each game shows its opening (ECO + name), players with ELO, move count, level, category (Bullet / Blitz / Classic…) and result, with search and category filters. Added the Elephant Trap (Queen's Gambit Declined).
 - `node scripts/fetch-classics.mjs` — pull hundreds of real games (Carlsen, bullet, your favourite openings) from Lichess straight into the Classics library, with opening, ELO and time control.

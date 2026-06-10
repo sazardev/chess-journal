@@ -1,0 +1,38 @@
+CHESS MINI  —  Welcome
+
+A fast, minimalist desktop app to record, analyze and review your chess games.
+Built for players who already know the game and like a clean, keyboard-first tool.
+
+WHAT YOU GET
+  - Continuous autosave — every game lives in a searchable library.
+  - Stockfish analysis — eval bar, best lines, candidate heatmap.
+  - Move-quality marks (!! ! ?! ? ??) and a one-shot whole-game analyzer.
+  - Annotations, bookmarks, comments, favorites and PGN / FEN / JSON export.
+
+AFTER INSTALL
+  Chess Mini opens with a short in-app welcome that shows this version and the
+  full list of changes to consider. Installed copies update themselves
+  automatically when a new version is published.
+
+This installer sets up Chess Mini for the current user (no admin required).
+Continue to accept the MIT license below and install.
+
+------------------------------------------------------------------------------
+MIT License — Copyright (c) 2026 sazardev
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

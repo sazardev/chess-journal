@@ -10,9 +10,11 @@ export interface AppConfig {
 
 interface ConfigState extends AppConfig {
   loaded: boolean
+  lastSeenVersion: string
   init: () => Promise<void>
   setOrientation: (orientation: Orientation) => void
   setPlaySpeed: (ms: number) => void
+  setLastSeenVersion: (v: string) => void
 }
 
 export const useConfigStore = create<ConfigState>((set) => {
@@ -29,12 +31,14 @@ export const useConfigStore = create<ConfigState>((set) => {
     orientation: "white",
     playSpeed: 500,
     loaded: false,
+    lastSeenVersion: "",
 
     init: async () => {
       const st = await ensureStore()
       const orientation = (await st.get<Orientation>("orientation")) ?? "white"
       const playSpeed = (await st.get<number>("playSpeed")) ?? 500
-      set({ orientation, playSpeed, loaded: true })
+      const lastSeenVersion = (await st.get<string>("lastSeenVersion")) ?? ""
+      set({ orientation, playSpeed, lastSeenVersion, loaded: true })
     },
 
     setOrientation: async (orientation) => {
@@ -47,6 +51,12 @@ export const useConfigStore = create<ConfigState>((set) => {
       set({ playSpeed })
       const st = await ensureStore()
       await st.set("playSpeed", playSpeed)
+    },
+
+    setLastSeenVersion: async (lastSeenVersion) => {
+      set({ lastSeenVersion })
+      const st = await ensureStore()
+      await st.set("lastSeenVersion", lastSeenVersion)
     },
   }
 })

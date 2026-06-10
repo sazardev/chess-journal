@@ -1,47 +1,8 @@
 import { useEffect } from "react"
-import changelogRaw from "../../CHANGELOG.md?raw"
+import Changelog from "./Changelog"
 import { useUpdateStore } from "../stores/useUpdateStore"
 
 const REPO = "github.com/sazardev/chess-mini"
-
-// Minimal changelog renderer — enough for Keep-a-Changelog markdown.
-function Changelog({ text }: { text: string }) {
-  const lines = text.split("\n")
-  return (
-    <div className="flex flex-col gap-0.5 font-mono text-[10px] leading-snug text-gray-600">
-      {lines.map((line, i) => {
-        if (line.startsWith("## ")) {
-          return (
-            <p key={i} className="mt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-black">
-              {line.slice(3)}
-            </p>
-          )
-        }
-        if (line.startsWith("### ")) {
-          return (
-            <p key={i} className="mt-1 text-[9px] uppercase tracking-[0.12em] text-gray-400">
-              {line.slice(4)}
-            </p>
-          )
-        }
-        if (line.startsWith("- ")) {
-          return (
-            <p key={i} className="pl-2 text-gray-600">
-              · {line.slice(2)}
-            </p>
-          )
-        }
-        if (line.startsWith("# ")) return null
-        if (!line.trim()) return <div key={i} className="h-1" />
-        return (
-          <p key={i} className="text-gray-400">
-            {line}
-          </p>
-        )
-      })}
-    </div>
-  )
-}
 
 export default function AboutModal({ onClose }: { onClose: () => void }) {
   const status = useUpdateStore((s) => s.status)
@@ -145,7 +106,7 @@ export default function AboutModal({ onClose }: { onClose: () => void }) {
 
         {/* Changelog */}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-          <Changelog text={changelogRaw} />
+          <Changelog />
         </div>
 
         {/* Footer */}

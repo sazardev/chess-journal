@@ -8,6 +8,7 @@ import Library from "./components/Library"
 import SettingsPanel from "./components/SettingsPanel"
 import ShortcutsOverlay from "./components/ShortcutsOverlay"
 import AboutModal from "./components/AboutModal"
+import OnboardingModal from "./components/OnboardingModal"
 import { useUpdateStore } from "./stores/useUpdateStore"
 import { useKeyboard } from "./hooks/useKeyboard"
 import { useAutoplay } from "./hooks/useAutoplay"
@@ -44,6 +45,7 @@ export default function App() {
   const configLoaded = useConfigStore((s) => s.loaded)
   const configSetOrientation = useConfigStore((s) => s.setOrientation)
   const configSetPlaySpeed = useConfigStore((s) => s.setPlaySpeed)
+  const configSetLastSeenVersion = useConfigStore((s) => s.setLastSeenVersion)
 
   const persistenceInit = usePersistenceStore((s) => s.init)
   const persistenceReady = usePersistenceStore((s) => s.ready)
@@ -58,6 +60,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [panelTab, setPanelTab] = useState<"moves" | "analysis">("moves")
   const [restored, setRestored] = useState(false)
 
@@ -105,6 +108,11 @@ export default function App() {
       }
 
       setRestored(true)
+
+      // First run (or first run after an update) → show the in-app onboarding.
+      if (useConfigStore.getState().lastSeenVersion !== __APP_VERSION__) {
+        setOnboardingOpen(true)
+      }
     }
 
     run()
@@ -121,6 +129,11 @@ export default function App() {
   }, [configLoaded, persistenceReady])
 
   useAutosave(restored && persistenceReady)
+
+  const closeOnboarding = () => {
+    setOnboardingOpen(false)
+    configSetLastSeenVersion(__APP_VERSION__)
+  }
 
   useKeyboard(
     {
@@ -148,6 +161,7 @@ export default function App() {
       "Ctrl+Shift+ArrowLeft": () => goToPrevBookmark(),
       "Ctrl+Shift+ArrowRight": () => goToNextBookmark(),
       "Escape": () => {
+        if (onboardingOpen) return closeOnboarding()
         if (aboutOpen) return setAboutOpen(false)
         if (settingsOpen) return setSettingsOpen(false)
         if (shortcutsOpen) return setShortcutsOpen(false)
@@ -227,6 +241,7 @@ export default function App() {
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       {shortcutsOpen && <ShortcutsOverlay onClose={() => setShortcutsOpen(false)} />}
       {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+      {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
     </div>
   )
 }

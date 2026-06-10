@@ -38,6 +38,8 @@
     "createUpdaterArtifacts": true,
     "publisher": "sazardev",
     "copyright": "© 2026 sazardev",
+    "license": "MIT",
+    "licenseFile": "installer/SETUP.txt",
     "category": "Education",
     "shortDescription": "Minimalist chess analyzer & game journal",
     "longDescription": "Chess Mini is a fast, minimalist desktop app to record, analyze and review your chess games — engine analysis, move-quality marks, annotations, autosave and a searchable library.",
@@ -50,7 +52,9 @@
     ],
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "sidebarImage": "installer/sidebar.bmp"
       }
     }
   },

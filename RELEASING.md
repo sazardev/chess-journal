@@ -34,8 +34,10 @@ Get-Content .\.tauri\chess-mini.key -Raw
 > ```
 > Then update both secrets accordingly.
 
-Without these secrets the workflow still builds and publishes a working installer —
-only the silent auto-update step is skipped.
+> These secrets are **required**: `createUpdaterArtifacts` signs the installer during
+> the build, so a release will fail without `TAURI_SIGNING_PRIVATE_KEY`. (To ship
+> unsigned installers without auto-update, set `createUpdaterArtifacts` to `false`
+> in `src-tauri/tauri.conf.json` and drop the `plugins.updater` block.)
 
 ---
 

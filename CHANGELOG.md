@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-06-10
+
 ### Added
 - Android launcher icon (the bishop) instead of the default Tauri logo.
 - App metadata / SEO — description, keywords, theme-color, Open Graph and mobile-web-app tags; `viewport-fit=cover`.

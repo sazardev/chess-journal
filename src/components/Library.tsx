@@ -7,7 +7,20 @@ import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { newGame } from "../lib/session"
 import OpeningStats from "./OpeningStats"
-import { CLASSICS, type ClassicGame } from "../data/classics"
+import { CLASSICS, type ClassicGame, type ClassicCategory } from "../data/classics"
+
+const CAT_ORDER: ClassicCategory[] = ["historic", "bullet", "blitz", "rapid", "classical"]
+const CAT_LABEL: Record<ClassicCategory, string> = {
+  historic: "Classic",
+  bullet: "Bullet",
+  blitz: "Blitz",
+  rapid: "Rapid",
+  classical: "Classical",
+}
+
+function plyCount(moves: string): number {
+  return moves.replace(/\d+\.(\.\.)?/g, " ").trim().split(/\s+/).filter(Boolean).length
+}
 
 const SORT_LABELS = ["Newest", "Oldest", "A-Z", "Z-A", "Moves ↑", "Moves ↓", "Rating ↑", "Rating ↓"] as const
 
@@ -40,6 +53,8 @@ export default function Library({ open, onToggle }: Props) {
   const [filter, setFilter] = useState<"all" | "pinned" | "favorite">("all")
   const [statsOpen, setStatsOpen] = useState(false)
   const [tab, setTab] = useState<"mine" | "classics">("mine")
+  const [classicsSearch, setClassicsSearch] = useState("")
+  const [classicsCat, setClassicsCat] = useState<"all" | ClassicCategory>("all")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [deletedEntry, setDeletedEntry] = useState<{ id: string; entry: ReturnType<typeof useLibraryStore.getState>["entries"][0] } | null>(null)
@@ -230,6 +245,24 @@ export default function Library({ open, onToggle }: Props) {
     const unpinned = sorted.filter((e) => !e.pinned)
     return { pinned, unpinned, total: sorted.length }
   }, [entries, search, sortIdx, filter])
+
+  const classicsView = useMemo(() => {
+    const q = classicsSearch.toLowerCase().trim()
+    const cats = CAT_ORDER.filter((c) => CLASSICS.some((g) => g.category === c))
+    const list = CLASSICS.filter((g) => {
+      if (classicsCat !== "all" && g.category !== classicsCat) return false
+      if (!q) return true
+      return (
+        (g.opening ?? "").toLowerCase().includes(q) ||
+        g.white.toLowerCase().includes(q) ||
+        g.black.toLowerCase().includes(q) ||
+        (g.eco ?? "").toLowerCase().includes(q) ||
+        g.event.toLowerCase().includes(q) ||
+        g.tags.some((t) => t.toLowerCase().includes(q))
+      )
+    })
+    return { list, cats }
+  }, [classicsSearch, classicsCat])
 
   const renderEntry = (entry: (typeof entries)[0]) => {
     const isLoaded = loadedId === entry.id
@@ -501,40 +534,84 @@ export default function Library({ open, onToggle }: Props) {
           )}
 
           {tab === "classics" && (
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-1.5">
-              {CLASSICS.map((g) => (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex items-center gap-1 px-3 pb-1.5 pt-1.5">
+              <input
+                type="text"
+                value={classicsSearch}
+                onChange={(e) => setClassicsSearch(e.target.value)}
+                placeholder="Opening, player, ECO..."
+                className="flex-1 bg-gray-50 font-mono text-[10px] outline-none placeholder:text-gray-300 text-black px-1.5 py-0.5"
+              />
+              <span className="font-mono text-[9px] tabular-nums text-gray-300">{classicsView.list.length}</span>
+            </div>
+
+            {classicsView.cats.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1 px-3 pb-1.5">
                 <button
-                  key={g.id}
-                  onClick={() => handleLoadClassic(g)}
-                  className={`group -mx-2 block w-full px-2 py-1.5 text-left transition-colors hover:bg-gray-50 ${
-                    loadedId === g.id ? "bg-gray-100" : ""
+                  onClick={() => setClassicsCat("all")}
+                  className={`font-mono text-[8px] uppercase tracking-[0.08em] px-1.5 py-0.5 transition-colors ${
+                    classicsCat === "all" ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
                   }`}
                 >
-                  <p className="truncate font-mono text-[10px] md:text-[11px] text-black">
-                    {g.white} — {g.black}
-                    {loadedId === g.id && (
-                      <span className="ml-1 text-[8px] font-normal text-gray-400">loaded</span>
-                    )}
-                  </p>
-                  <div className="mt-0.5 flex items-center gap-2">
-                    <span className="font-mono text-[8px] text-gray-400">
-                      {g.event}, {g.year}
-                    </span>
-                    <span className="font-mono text-[8px] tabular-nums text-gray-300">{g.result}</span>
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap gap-1">
-                    {g.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="font-mono text-[7px] uppercase tracking-[0.1em] text-gray-300"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
+                  All
                 </button>
-              ))}
+                {classicsView.cats.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setClassicsCat(c)}
+                    className={`font-mono text-[8px] uppercase tracking-[0.08em] px-1.5 py-0.5 transition-colors ${
+                      classicsCat === c ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
+                    }`}
+                  >
+                    {CAT_LABEL[c]}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2">
+              {classicsView.list.length === 0 && (
+                <p className="py-4 text-center font-mono text-[10px] text-gray-300">No games</p>
+              )}
+              {classicsView.list.map((g) => {
+                const moves = Math.ceil(plyCount(g.moves) / 2)
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => handleLoadClassic(g)}
+                    className={`group -mx-2 block w-full px-2 py-1.5 text-left transition-colors hover:bg-gray-50 ${
+                      loadedId === g.id ? "bg-gray-100" : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {g.eco && (
+                        <span className="shrink-0 font-mono text-[8px] tabular-nums text-gray-400">{g.eco}</span>
+                      )}
+                      <span className="truncate font-mono text-[10px] md:text-[11px] text-black">
+                        {g.opening || `${g.white} — ${g.black}`}
+                      </span>
+                      {loadedId === g.id && (
+                        <span className="shrink-0 text-[8px] text-gray-400">loaded</span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate font-mono text-[9px] text-gray-500">
+                      {g.white}
+                      {g.whiteElo ? ` (${g.whiteElo})` : ""} — {g.black}
+                      {g.blackElo ? ` (${g.blackElo})` : ""}
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[8px] text-gray-400">
+                      <span className="uppercase tracking-[0.08em] text-gray-300">{CAT_LABEL[g.category]}</span>
+                      <span className="tabular-nums">{moves} moves</span>
+                      {g.result !== "*" && <span className="tabular-nums">{g.result}</span>}
+                      {g.level && <span>{g.level}</span>}
+                      {g.year > 0 && <span className="tabular-nums">{g.year}</span>}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
+          </div>
           )}
         </div>
       </div>

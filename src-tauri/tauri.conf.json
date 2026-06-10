@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Chess Mini",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "com.chess-mini.app",
   "build": {
     "frontendDist": "../dist",
@@ -34,7 +34,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "createUpdaterArtifacts": true,
     "publisher": "sazardev",
     "copyright": "© 2026 sazardev",

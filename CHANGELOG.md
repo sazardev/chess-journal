@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-10
+
 ### Added
 - First-run onboarding — a welcome screen (in the app's own UI) showing the version, what Chess Mini is, key shortcuts and the changes to consider. Reappears after each update.
 - Branded Windows installer — bishop sidebar graphic and a welcome/changes page shown during setup.

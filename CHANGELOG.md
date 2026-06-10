@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Mobile bottom navigation (Moves · Analysis · Library) and swipe left/right on the board to step through moves — a more native Android feel.
+- CI boots an Android emulator, installs the APK, launches the app and uploads a screenshot for verification.
+
 ## [0.1.7] - 2026-06-10
 
 ### Added

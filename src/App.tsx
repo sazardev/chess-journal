@@ -16,6 +16,8 @@ import { useAutosave } from "./hooks/useAutosave"
 import { useEngine } from "./hooks/useEngine"
 import { useGameAnalyzer } from "./hooks/useGameAnalyzer"
 import { useOpeningDetection } from "./hooks/useOpeningDetection"
+import { useTouch } from "./hooks/useTouch"
+import { useSwipe } from "./hooks/useSwipe"
 import { useGameStore } from "./stores/useGameStore"
 import { useBoardStore } from "./stores/useBoardStore"
 import { useLibraryStore } from "./stores/useLibraryStore"
@@ -177,9 +179,12 @@ export default function App() {
 
   useAutoplay()
 
-  const tabBtn = (active: boolean) =>
-    `flex-1 font-mono text-[10px] uppercase tracking-[0.12em] py-2.5 transition-colors ${
-      active ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
+  const touch = useTouch()
+  const boardSwipe = useSwipe(goForward, goBack)
+
+  const navBtn = (active: boolean) =>
+    `flex flex-1 flex-col items-center justify-center gap-0.5 py-2 font-mono text-[9px] uppercase tracking-[0.12em] transition-colors ${
+      active ? "text-black" : "text-gray-400"
     }`
 
   return (
@@ -201,8 +206,11 @@ export default function App() {
         )}
 
         <div className="flex flex-1 flex-col md:flex-row overflow-hidden min-h-0">
-          {/* Board */}
-          <div className="flex h-[52vh] h-[52dvh] shrink-0 items-center justify-center p-2 md:h-auto md:min-h-0 md:flex-[2] md:p-4">
+          {/* Board (swipe left/right to step through moves on touch) */}
+          <div
+            className="flex h-[52vh] h-[52dvh] shrink-0 items-center justify-center p-2 md:h-auto md:min-h-0 md:flex-[2] md:p-4"
+            {...(touch ? boardSwipe : {})}
+          >
             <Board engine={engine} />
           </div>
 
@@ -216,16 +224,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Mobile / tablet bottom panel with tabs */}
+          {/* Mobile panel — switched by the bottom nav */}
           <div className="flex min-h-0 flex-1 flex-col border-t border-gray-100 md:hidden">
-            <div className="flex shrink-0 border-b border-gray-100">
-              <button onClick={() => setPanelTab("moves")} className={tabBtn(panelTab === "moves")}>
-                Moves
-              </button>
-              <button onClick={() => setPanelTab("analysis")} className={tabBtn(panelTab === "analysis")}>
-                Analysis
-              </button>
-            </div>
             {panelTab === "moves" ? (
               <div className="min-h-0 flex-1 overflow-hidden">
                 <MoveHistory />
@@ -240,6 +240,41 @@ export default function App() {
       </div>
 
       <MoveInput inputRef={moveInputRef} engine={engine} />
+
+      {/* Mobile bottom navigation */}
+      <nav className="flex shrink-0 border-t border-gray-100 pb-[env(safe-area-inset-bottom)] md:hidden">
+        <button
+          onClick={() => {
+            setLibraryOpen(false)
+            setPanelTab("moves")
+          }}
+          className={navBtn(!libraryOpen && panelTab === "moves")}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="4" cy="6" r="0.8" /><circle cx="4" cy="12" r="0.8" /><circle cx="4" cy="18" r="0.8" />
+            <line x1="9" y1="6" x2="20" y2="6" /><line x1="9" y1="12" x2="20" y2="12" /><line x1="9" y1="18" x2="20" y2="18" />
+          </svg>
+          Moves
+        </button>
+        <button
+          onClick={() => {
+            setLibraryOpen(false)
+            setPanelTab("analysis")
+          }}
+          className={navBtn(!libraryOpen && panelTab === "analysis")}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 12 7 12 10 4 14 20 17 12 21 12" />
+          </svg>
+          Analysis
+        </button>
+        <button onClick={() => setLibraryOpen((v) => !v)} className={navBtn(libraryOpen)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3 3 8l9 5 9-5-9-5z" /><path d="M3 13l9 5 9-5" />
+          </svg>
+          Library
+        </button>
+      </nav>
 
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       {shortcutsOpen && <ShortcutsOverlay onClose={() => setShortcutsOpen(false)} />}

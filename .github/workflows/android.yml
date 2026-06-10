@@ -1,6 +1,8 @@
 name: Android APK
 
-# Manual build of an installable (debug-signed) Android APK.
+# Builds an installable (debug-signed) universal APK, attaches it to the latest
+# release, then boots an Android emulator, installs it, launches the app and
+# captures a screenshot.
 on:
   workflow_dispatch:
 
@@ -50,15 +52,12 @@ jobs:
       - name: Initialize Android project
         run: npx tauri android init --ci
 
-      # Write the bishop launcher icons into the freshly-generated Android res/
-      # (otherwise it ships the default Tauri logo).
-      - name: Generate app icons
+      - name: Generate app icons (bishop)
         run: npx tauri icon app-icon.svg
 
-      # Debug build is signed with the debug keystore → installable for testing.
-      # Use arm64 only for a fast, broadly-compatible build (most modern phones).
+      # Universal debug APK: installs on phones (arm64) AND the x86_64 emulator.
       - name: Build APK
-        run: npx tauri android build --apk --debug --target aarch64
+        run: npx tauri android build --apk --debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -71,10 +70,39 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          APK=$(find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" | head -1)
+          APK=$(find src-tauri/gen/android/app/build/outputs/apk -name "*universal*.apk" | head -1)
           VERSION=$(node -p "require('./package.json').version")
-          cp "$APK" "Chess-Mini_${VERSION}_android-arm64.apk"
+          cp "$APK" "Chess-Mini_${VERSION}_android.apk"
           TAG=$(gh release view --json tagName -q .tagName)
-          gh release upload "$TAG" "Chess-Mini_${VERSION}_android-arm64.apk" --clobber
+          gh release upload "$TAG" "Chess-Mini_${VERSION}_android.apk" --clobber
           echo "Attached APK to release $TAG"
 
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run on emulator + screenshot
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            APK=$(find src-tauri/gen/android/app/build/outputs/apk -name "*universal*.apk" | head -1)
+            adb install -r "$APK"
+            AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort | tail -1)
+            PKG=$("$AAPT" dump badging "$APK" | sed -n "s/.*package: name='\([^']*\)'.*/\1/p")
+            echo "Launching $PKG"
+            adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 || true
+            sleep 14
+            adb exec-out screencap -p > emulator-screenshot.png
+
+      - name: Upload emulator screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: chess-mini-emulator-screenshot
+          path: emulator-screenshot.png
+          if-no-files-found: warn

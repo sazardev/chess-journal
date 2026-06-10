@@ -135,7 +135,7 @@ export default function MoveInput({ inputRef, engine }: Props) {
   const label = isGameOver ? "=" : turn === "w" ? "White" : "Black"
 
   return (
-    <div className="relative px-3 md:px-4 pt-2 md:pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] md:pb-3">
+    <div className="relative px-3 md:px-4 py-2 md:py-3">
       {error && (
         <div className="absolute -top-5 md:-top-6 left-3 md:left-4 right-3 md:right-4 font-mono text-[10px] md:text-[11px] text-gray-400 truncate">
           {error}

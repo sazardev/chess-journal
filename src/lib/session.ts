@@ -9,6 +9,10 @@ import { useAnalysisStore } from "../stores/useAnalysisStore"
 import { useEditorStore } from "../stores/useEditorStore"
 import { getOpeningsCache, detectOpening } from "./openings"
 
+// Re-exported for backwards compatibility; defined in its own module to avoid
+// an import cycle with useMetaStore (which seeds new games with a random name).
+export { randomGameName } from "./gameNames"
+
 /**
  * Single source of truth for the "auto a biblioteca" save model.
  * Every game with at least one move lives in the library and is updated
@@ -18,79 +22,6 @@ import { getOpeningsCache, detectOpening } from "./openings"
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
-}
-
-const GAME_NAMES = [
-  "Tata Steel",
-  "Candidates Tournament",
-  "Sinquefield Cup",
-  "Norway Chess",
-  "London Chess Classic",
-  "Wijk aan Zee",
-  "Gibraltar Masters",
-  "Isle of Man",
-  "World Rapid",
-  "World Blitz",
-  "En Passant",
-  "Zugzwang",
-  "J'adoube",
-  "The Queen's Gambit",
-  "Knightmare",
-  "Fork You",
-  "Pinned Piece",
-  "Blunderville",
-  "Smothered Mate",
-  "King's Indian Retreat",
-  "Sicilian Scheming",
-  "Evans Gambit Gone Wrong",
-  "Magnus'd",
-  "Hikaru'd",
-  "Old Benoni",
-  "Hyperaccelerated Something",
-  "Double Bongcloud",
-  "Scholar's Mate Attempt",
-  "Touch Move",
-  "Hastings Masters",
-  "Capablanca Memorial",
-  "Linares Tournament",
-  "Alekhine Memorial",
-  "Tal Memorial",
-  "Bobby Fischer's Dream",
-  "Karpov–Kasparov Era",
-  "Sunday Blitz",
-  "Café de la Régence",
-  "Reykjavik 1972",
-  "Buenos Aires Olympiad",
-  "Central Park Bullet",
-  "Petrov's Immortal",
-  "Opera Game",
-  "Fried Liver Attack",
-  "Poisoned Pawn",
-  "Greek Gift",
-  "Windmill",
-  "Philidor's Legacy",
-  "Morphy's Opera",
-  "Dragon Variation",
-  "Najdorf Poison",
-  "Mar del Plata",
-  "Trompowsky Attack",
-  "Latvian Gambit",
-  "Berlin Defense",
-  "Reggio Emilia",
-  "Bundesliga Weekender",
-  "Zurich 1953",
-  "Moscow 1946",
-  "Saint Louis Rapid",
-  "Dortmund Sparkassen",
-  "Shamkir Chess",
-  "Grand Swiss",
-  "Bullet Brawl",
-  "Titled Tuesday",
-  "Arena Kings",
-]
-
-export function randomGameName(): string {
-  return GAME_NAMES[Math.floor(Math.random() * GAME_NAMES.length)]
 }
 
 // Auto-detect the objective result from a checkmating final move (draws stay manual).

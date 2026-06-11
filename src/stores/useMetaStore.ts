@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import type { SaveData, GameResult, PlayerColor } from "../types/save"
-import { randomGameName } from "../lib/session"
+import { randomGameName } from "../lib/gameNames"
 
 interface MetaState {
   name: string

@@ -31,7 +31,7 @@ if (!existsSync(resRoot)) {
 // app is always light, so the system chrome must match in both.
 const THEME = `<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Generated, then patched by scripts/patch-android.mjs. -->
-    <style name="Theme.chess_mini" parent="Theme.MaterialComponents.Light.NoActionBar">
+    <style name="Theme.chess_journal" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>

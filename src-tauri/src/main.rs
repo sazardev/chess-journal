@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-  chess_mini_lib::run();
+  chess_journal_lib::run();
 }

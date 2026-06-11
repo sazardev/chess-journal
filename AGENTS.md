@@ -1,4 +1,4 @@
-# AGENTS.md — Chess Mini
+# AGENTS.md — Chess Journal
 
 ## Dev commands
 
@@ -18,7 +18,7 @@ No test suite is configured. There is no `npm test`.
 - **React 19 + TypeScript + Zustand + Tailwind CSS v4** for the frontend.
 - **The Rust backend has zero custom commands.** `src-tauri/src/lib.rs` only initializes plugins (dialog, fs, store, updater, process). All application logic lives in TypeScript.
 - **Stockfish** runs in a Web Worker (`public/stockfish-engine.js` + `.wasm`).
-- **Persistence** has two paths: Tauri FS (`@tauri-apps/plugin-fs`) on desktop, `localStorage` as fallback. Resolved at runtime in `usePersistenceStore`. Keys are prefixed `chess-mini-`.
+- **Persistence** has two paths: Tauri FS (`@tauri-apps/plugin-fs`) on desktop, `localStorage` as fallback. Resolved at runtime in `usePersistenceStore`. Keys are prefixed `chess-journal-`.
 - **Fonts**: General Sans (api.fontshare.com), JetBrains Mono (Google Fonts). CSP in `tauri.conf.json` allows these origins.
 
 ## Key files

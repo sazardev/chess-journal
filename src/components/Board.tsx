@@ -205,7 +205,7 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
   }
 
   const options: ChessboardOptions = {
-    id: "chess-mini",
+    id: "chess-journal",
     position: fen,
     boardOrientation: orientation,
     allowDragging: true,
@@ -233,7 +233,7 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
   }
 
   return (
-    <div ref={containerRef} id="chess-mini-export" className="flex flex-col items-center">
+    <div ref={containerRef} id="chess-journal-export" className="flex flex-col items-center">
       <div className="flex">
         {!touch && (
           <div className="flex flex-col">

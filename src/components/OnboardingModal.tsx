@@ -25,11 +25,11 @@ export default function OnboardingModal({ onClose }: { onClose: () => void }) {
             <path d="M16.25 9.4 L 18.4 11.6" stroke="var(--c-black)" strokeWidth="0.8" strokeLinecap="round" />
           </svg>
           <div className="flex items-baseline gap-2">
-            <h1 className="font-mono text-[13px] uppercase tracking-[0.18em] text-black">Welcome to Chess Mini</h1>
+            <h1 className="font-mono text-[13px] uppercase tracking-[0.18em] text-black">Welcome to Chess Journal</h1>
             <span className="font-mono text-[10px] tabular-nums text-gray-400">v{__APP_VERSION__}</span>
           </div>
           <p className="max-w-xs font-sans text-[12px] leading-relaxed text-gray-500">
-            A fast, minimalist desktop app to record, analyze and review your chess games —
+            Your gamebook to record, analyze and review your chess games —
             engine analysis, move-quality marks and a searchable library, all saved automatically.
           </p>
         </div>

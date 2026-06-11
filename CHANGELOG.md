@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Chess Mini are documented here.
+All notable changes to Chess Journal are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
@@ -87,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.1.1] - 2026-06-10
 
 ### Added
-- First-run onboarding — a welcome screen (in the app's own UI) showing the version, what Chess Mini is, key shortcuts and the changes to consider. Reappears after each update.
+- First-run onboarding — a welcome screen (in the app's own UI) showing the version, what Chess Journal is, key shortcuts and the changes to consider. Reappears after each update.
 - Branded Windows installer — bishop sidebar graphic and a welcome/changes page shown during setup.
 
 ## [0.1.0]

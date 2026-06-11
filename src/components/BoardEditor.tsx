@@ -52,7 +52,7 @@ export default function BoardEditor() {
   )
 
   const options: ChessboardOptions = {
-    id: "chess-mini-editor",
+    id: "chess-journal-editor",
     position: fen,
     boardOrientation: orientation,
     allowDragging: true,
@@ -86,7 +86,7 @@ export default function BoardEditor() {
   const bottomPieces = orientation === "white" ? WHITE_PIECES : BLACK_PIECES
 
   return (
-    <div ref={containerRef} id="chess-mini-export" className="flex flex-col items-center gap-1.5">
+    <div ref={containerRef} id="chess-journal-export" className="flex flex-col items-center gap-1.5">
       <ChessboardProvider options={options}>
         {tray(topPieces)}
         <div style={{ width: boardSize, height: boardSize }}>

@@ -1,24 +1,24 @@
 <div align="center">
 
-<img src="src-tauri/icons/128x128.png" width="84" alt="Chess Mini" />
+<img src="src-tauri/icons/128x128.png" width="84" alt="Chess Journal" />
 
-# Chess Mini
+# Chess Journal
 
-**A fast, minimalist desktop app to record, analyze and review your chess games.**
+**Your gamebook to record, analyze and review your chess games.**
 
-[![Release](https://img.shields.io/github/v/release/sazardev/chess-mini?style=flat-square&label=release)](https://github.com/sazardev/chess-mini/releases/latest)
-[![Build](https://img.shields.io/github/actions/workflow/status/sazardev/chess-mini/release.yml?style=flat-square&label=build)](https://github.com/sazardev/chess-mini/actions/workflows/release.yml)
-[![Downloads](https://img.shields.io/github/downloads/sazardev/chess-mini/total?style=flat-square)](https://github.com/sazardev/chess-mini/releases)
+[![Release](https://img.shields.io/github/v/release/sazardev/chess-journal?style=flat-square&label=release)](https://github.com/sazardev/chess-journal/releases/latest)
+[![Build](https://img.shields.io/github/actions/workflow/status/sazardev/chess-journal/release.yml?style=flat-square&label=build)](https://github.com/sazardev/chess-journal/actions/workflows/release.yml)
+[![Downloads](https://img.shields.io/github/downloads/sazardev/chess-journal/total?style=flat-square)](https://github.com/sazardev/chess-journal/releases)
 ![Platform](https://img.shields.io/badge/platform-Windows-black?style=flat-square)
-[![License](https://img.shields.io/github/license/sazardev/chess-mini?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/github/license/sazardev/chess-journal?style=flat-square)](LICENSE)
 
-### [⬇ Download the latest installer](https://github.com/sazardev/chess-mini/releases/latest)
+### [⬇ Download the latest installer](https://github.com/sazardev/chess-journal/releases/latest)
 
 </div>
 
 ---
 
-Chess Mini is built for people who already play chess and like a clean,
+Chess Journal is built for people who already play chess and like a clean,
 keyboard-first tool — engine analysis, move-quality marks, annotations and a
 searchable game library, with everything saved automatically.
 

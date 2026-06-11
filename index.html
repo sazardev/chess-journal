@@ -8,14 +8,14 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <title>Chess Mini — minimalist chess analyzer</title>
+    <title>Chess Journal — your gamebook for chess</title>
 
     <meta
       name="description"
-      content="Chess Mini — a fast, minimalist chess analyzer and game journal: Stockfish analysis, move-quality marks, opening detection, legendary games and a searchable library. Desktop and Android."
+      content="Chess Journal — your gamebook to record, analyze and review your chess games: Stockfish analysis, move-quality marks, opening detection, legendary games and a searchable library. Desktop and Android."
     />
-    <meta name="keywords" content="chess, analyzer, stockfish, openings, ECO, PGN, game journal, chess engine, Carlsen, classics" />
-    <meta name="application-name" content="Chess Mini" />
+    <meta name="keywords" content="chess, analyzer, stockfish, openings, ECO, PGN, game journal, gamebook, chess engine, Carlsen, classics" />
+    <meta name="application-name" content="Chess Journal" />
     <meta name="theme-color" content="#ffffff" />
     <meta name="color-scheme" content="light dark" />
 
@@ -23,7 +23,7 @@
     <script>
       (function () {
         try {
-          var m = localStorage.getItem("chess-mini-theme") || "system";
+          var m = localStorage.getItem("chess-journal-theme") || localStorage.getItem("chess-mini-theme") || "system";
           var dark =
             m === "dark" ||
             (m === "system" &&
@@ -36,15 +36,15 @@
     <!-- Mobile web app -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Chess Mini" />
+    <meta name="apple-mobile-web-app-title" content="Chess Journal" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Chess Mini" />
-    <meta property="og:description" content="A fast, minimalist chess analyzer and game journal." />
+    <meta property="og:title" content="Chess Journal" />
+    <meta property="og:description" content="Your gamebook to record, analyze and review your chess games." />
     <meta property="og:image" content="/favicon.svg" />
-    <meta property="og:url" content="https://github.com/sazardev/chess-mini" />
+    <meta property="og:url" content="https://github.com/sazardev/chess-journal" />
     <link
       href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap"
       rel="stylesheet"

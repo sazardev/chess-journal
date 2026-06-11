@@ -1,6 +1,6 @@
-CHESS MINI  —  Welcome
+CHESS JOURNAL  —  Welcome
 
-A fast, minimalist desktop app to record, analyze and review your chess games.
+A fast, minimalist gamebook to record, analyze and review your chess games.
 Built for players who already know the game and like a clean, keyboard-first tool.
 
 WHAT YOU GET
@@ -10,11 +10,11 @@ WHAT YOU GET
   - Annotations, bookmarks, comments, favorites and PGN / FEN / JSON export.
 
 AFTER INSTALL
-  Chess Mini opens with a short in-app welcome that shows this version and the
+  Chess Journal opens with a short in-app welcome that shows this version and the
   full list of changes to consider. Installed copies update themselves
   automatically when a new version is published.
 
-This installer sets up Chess Mini for the current user (no admin required).
+This installer sets up Chess Journal for the current user (no admin required).
 Continue to accept the MIT license below and install.
 
 ------------------------------------------------------------------------------

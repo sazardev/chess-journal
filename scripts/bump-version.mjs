@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Cross-platform version bump for Chess Mini.
+// Cross-platform version bump for Chess Journal.
 // Usage: node scripts/bump-version.mjs <patch|minor|major|X.Y.Z>
 // Updates package.json, src-tauri/tauri.conf.json, src-tauri/Cargo.toml and CHANGELOG.md.
 

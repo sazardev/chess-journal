@@ -145,7 +145,7 @@ export default function TitleBar({
           page in the bottom nav, so only the wordmark stays here. */}
       <div className="flex items-center gap-1 pl-1">
         <span className="font-mono text-[10px] tracking-widest uppercase text-gray-400 pr-0.5">
-          Chess Mini
+          Chess Journal
         </span>
         <div className="hidden md:flex items-center gap-1">
           <button

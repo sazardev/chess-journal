@@ -2,7 +2,7 @@ export type ThemeMode = "light" | "dark" | "system"
 
 /** localStorage mirror, read by the pre-paint script in index.html to avoid a
  *  flash of the wrong theme before the app (and its Tauri store) load. */
-export const THEME_STORAGE_KEY = "chess-mini-theme"
+export const THEME_STORAGE_KEY = "chess-journal-theme"
 
 function systemPrefersDark(): boolean {
   return (
@@ -35,11 +35,17 @@ export function applyTheme(mode: ThemeMode): void {
   if (meta) meta.setAttribute("content", resolved === "dark" ? "#0c0c0d" : "#ffffff")
 }
 
-/** The persisted mode mirror, falling back to "system". */
+/** The persisted mode mirror, falling back to "system". Migrates old key on first read. */
 export function storedTheme(): ThemeMode {
   try {
     const v = localStorage.getItem(THEME_STORAGE_KEY)
     if (v === "light" || v === "dark" || v === "system") return v
+    // Migrate from old key
+    const old = localStorage.getItem("chess-mini-theme")
+    if (old === "light" || old === "dark" || old === "system") {
+      localStorage.setItem(THEME_STORAGE_KEY, old)
+      return old
+    }
   } catch {
     /* ignore */
   }

@@ -115,7 +115,7 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
   )
 
   const exportPng = useCallback(async () => {
-    const el = document.getElementById("chess-mini-export")
+    const el = document.getElementById("chess-journal-export")
     if (!el) return
 
     setExportState("loading")
@@ -132,7 +132,7 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
         const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
 
         const path = await saveDialog({
-          defaultPath: "chess-mini.png",
+          defaultPath: "chess-journal.png",
           filters: [{ name: "PNG Image", extensions: ["png"] }],
         })
         if (!path) {
@@ -143,7 +143,7 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
         await writeFs(path, bytes)
       } catch {
         const link = document.createElement("a")
-        link.download = "chess-mini.png"
+        link.download = "chess-journal.png"
         link.href = dataUrl
         link.click()
       }

@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import Changelog from "./Changelog"
 import { useUpdateStore } from "../stores/useUpdateStore"
 
-const REPO = "github.com/sazardev/chess-mini"
+const REPO = "github.com/sazardev/chess-journal"
 
 export default function AboutModal({ onClose }: { onClose: () => void }) {
   const status = useUpdateStore((s) => s.status)
@@ -42,7 +42,7 @@ export default function AboutModal({ onClose }: { onClose: () => void }) {
               <path d="M16.25 9.4 L 18.4 11.6" stroke="var(--c-black)" strokeWidth="0.8" strokeLinecap="round" />
             </svg>
             <div className="flex items-baseline gap-1.5">
-              <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-black">Chess Mini</span>
+              <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-black">Chess Journal</span>
               <span className="font-mono text-[10px] tabular-nums text-gray-400">v{__APP_VERSION__}</span>
             </div>
           </div>

@@ -136,7 +136,7 @@ pub async fn ai_download(app: AppHandle, url: String, file_name: String) -> Resu
 async fn download_to(app: &AppHandle, url: &str, path: &Path, event: &str) -> Result<(), String> {
     let tmp = path.with_extension("part");
     let client = reqwest::Client::builder()
-        .user_agent("chess-mini")
+        .user_agent("chess-journal")
         .build()
         .map_err(|e| e.to_string())?;
     let resp = client.get(url).send().await.map_err(|e| e.to_string())?;
@@ -185,7 +185,7 @@ pub async fn ai_server_install(app: AppHandle) -> Result<(), String> {
     const EXCLUDED: &[&str] = &["cuda", "vulkan", "hip", "sycl", "musa", "kompute", "cann"];
 
     let client = reqwest::Client::builder()
-        .user_agent("chess-mini")
+        .user_agent("chess-journal")
         .build()
         .map_err(|e| e.to_string())?;
     let release: serde_json::Value = client

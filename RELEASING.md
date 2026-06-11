@@ -1,6 +1,6 @@
-# Releasing Chess Mini
+# Releasing Chess Journal
 
-Chess Mini ships as a Windows installer (NSIS, per-user — no admin needed) and
+Chess Journal ships as a Windows installer (NSIS, per-user — no admin needed) and
 updates itself automatically via the Tauri updater. Releases are produced by the
 **Release** GitHub Action.
 
@@ -11,26 +11,26 @@ updates itself automatically via the Tauri updater. Releases are produced by the
 The auto-updater only installs updates signed with the project's private key. A
 keypair was already generated at `./.tauri/` (git-ignored):
 
-- `./.tauri/chess-mini.key` — **private key** (never commit; treat as a secret)
-- `./.tauri/chess-mini.key.pub` — public key (already embedded in `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`)
+- `./.tauri/chess-journal.key` — **private key** (never commit; treat as a secret)
+- `./.tauri/chess-journal.key.pub` — public key (already embedded in `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`)
 
 Add two repository secrets in **GitHub → Settings → Secrets and variables → Actions**:
 
 | Secret | Value |
 | --- | --- |
-| `TAURI_SIGNING_PRIVATE_KEY` | the full contents of `./.tauri/chess-mini.key` |
+| `TAURI_SIGNING_PRIVATE_KEY` | the full contents of `./.tauri/chess-journal.key` |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | empty (the key was generated without a password) |
 
 To print the private key:
 
 ```powershell
-Get-Content .\.tauri\chess-mini.key -Raw
+Get-Content .\.tauri\chess-journal.key -Raw
 ```
 
 > Prefer your own password-protected key? Regenerate and re-embed the public key:
 > ```powershell
-> npx tauri signer generate -w .\.tauri\chess-mini.key -f
-> Get-Content .\.tauri\chess-mini.key.pub -Raw   # paste into tauri.conf.json → plugins.updater.pubkey
+> npx tauri signer generate -w .\.tauri\chess-journal.key -f
+> Get-Content .\.tauri\chess-journal.key.pub -Raw   # paste into tauri.conf.json → plugins.updater.pubkey
 > ```
 > Then update both secrets accordingly.
 
@@ -68,9 +68,9 @@ Version is kept in sync across `package.json`, `src-tauri/tauri.conf.json`,
 ## How auto-update works
 
 1. On launch the app calls the updater, which fetches
-   `https://github.com/sazardev/chess-mini/releases/latest/download/latest.json`.
+   `https://github.com/sazardev/chess-journal/releases/latest/download/latest.json`.
 2. If a newer signed version exists, a dot appears on the version chip next to
-   **Chess Mini** in the title bar.
+   **Chess Journal** in the title bar.
 3. Clicking the version opens **About**, where the user can **Update & restart** —
    the new version downloads, verifies its signature, installs, and relaunches.
 
@@ -87,7 +87,7 @@ npm run tauri build    # produce the installer in src-tauri/target/release/bundl
 > A local `tauri build` signs updater artifacts and therefore needs the signing key.
 > Set it for the session:
 > ```powershell
-> $env:TAURI_SIGNING_PRIVATE_KEY = Get-Content .\.tauri\chess-mini.key -Raw
+> $env:TAURI_SIGNING_PRIVATE_KEY = Get-Content .\.tauri\chess-journal.key -Raw
 > $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
 > npm run tauri build
 > ```
@@ -116,7 +116,7 @@ the games. Validate hand-authored games in `classics.ts` with
 
 ## Android (APK)
 
-Chess Mini also builds for Android (Tauri mobile). The UI is already responsive,
+Chess Journal also builds for Android (Tauri mobile). The UI is already responsive,
 and desktop-only plugins (auto-update, relaunch) are gated off mobile.
 
 - **Build an installable APK:** **Actions → Android APK → Run workflow**. It sets up

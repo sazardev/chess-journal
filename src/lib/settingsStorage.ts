@@ -7,14 +7,15 @@ export interface SettingsStorage {
 }
 
 function localKey(fileName: string, key: string): string {
-  return `chess-mini-${fileName}-${key}`
+  return `chess-journal-${fileName}-${key}`
 }
 
 function localStorageAdapter(fileName: string): SettingsStorage {
   return {
     async get<T>(key: string): Promise<T | null> {
       try {
-        const raw = localStorage.getItem(localKey(fileName, key))
+        const raw = localStorage.getItem(localKey(fileName, key)) ??
+          localStorage.getItem(`chess-mini-${fileName}-${key}`)
         return raw ? (JSON.parse(raw) as T) : null
       } catch {
         return null

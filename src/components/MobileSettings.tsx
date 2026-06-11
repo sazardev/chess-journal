@@ -8,7 +8,7 @@ import AiSettings from "./AiSettings"
 import ShortcutsList from "./ShortcutsList"
 import Changelog from "./Changelog"
 
-const REPO = "github.com/sazardev/chess-mini"
+const REPO = "github.com/sazardev/chess-journal"
 
 /** Full-screen mobile Settings page (reachable from the bottom nav). Hosts the
  * pieces that used to live in the title bar on desktop: version/update, data
@@ -55,7 +55,7 @@ export default function MobileSettings({ onErased }: { onErased?: () => void }) 
           <path d="M16.25 9.4 L 18.4 11.6" stroke="var(--c-black)" strokeWidth="0.8" strokeLinecap="round" />
         </svg>
         <div className="flex items-baseline gap-2">
-          <span className="font-mono text-[12px] uppercase tracking-[0.15em] text-black">Chess Mini</span>
+          <span className="font-mono text-[12px] uppercase tracking-[0.15em] text-black">Chess Journal</span>
           <span className="font-mono text-[11px] tabular-nums text-gray-400">v{__APP_VERSION__}</span>
         </div>
       </div>

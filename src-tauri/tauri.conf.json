@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Chess Mini",
+  "productName": "Chess Journal",
   "version": "0.1.14",
-  "identifier": "com.chess-mini.app",
+  "identifier": "com.chess-journal.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Chess Mini",
+        "title": "Chess Journal",
         "width": 900,
         "height": 640,
         "minWidth": 400,
@@ -43,8 +43,8 @@
     "license": "MIT",
     "licenseFile": "installer/SETUP.txt",
     "category": "Education",
-    "shortDescription": "Minimalist chess analyzer & game journal",
-    "longDescription": "Chess Mini is a fast, minimalist desktop app to record, analyze and review your chess games — engine analysis, move-quality marks, annotations, autosave and a searchable library.",
+    "shortDescription": "Your gamebook for chess",
+    "longDescription": "Chess Journal is your gamebook to record, analyze and review your chess games — engine analysis, move-quality marks, annotations, autosave and a searchable library.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -63,7 +63,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/sazardev/chess-mini/releases/latest/download/latest.json"
+        "https://github.com/sazardev/chess-journal/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc3RUExQjE0MjQ0RDdEN0YKUldSL2ZVMGtGQnZxZHcreEpZZ3BWVnh0NVVXMjBnMHd5Nk1HRWtxWlk1TjNUcUsrdFQ2REFxL3IK"
     }

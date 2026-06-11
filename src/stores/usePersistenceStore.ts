@@ -43,7 +43,7 @@ async function tauriAvailable(): Promise<boolean> {
 
 function localGet<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(`chess-mini-${key}`)
+    const raw = localStorage.getItem(`chess-journal-${key}`)
     return raw ? (JSON.parse(raw) as T) : fallback
   } catch {
     return fallback
@@ -52,8 +52,53 @@ function localGet<T>(key: string, fallback: T): T {
 
 function localSet(key: string, value: unknown) {
   try {
-    localStorage.setItem(`chess-mini-${key}`, JSON.stringify(value))
+    localStorage.setItem(`chess-journal-${key}`, JSON.stringify(value))
   } catch { /* ignore */ }
+}
+
+function migrateLocalStorage() {
+  const OLD = "chess-mini-"
+  const NEW = "chess-journal-"
+  if (localStorage.getItem("chess-journal-migrated")) return
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key?.startsWith(OLD)) {
+        const newKey = key.replace(OLD, NEW)
+        if (!localStorage.getItem(newKey)) {
+          const value = localStorage.getItem(key)
+          if (value) localStorage.setItem(newKey, value)
+        }
+      }
+    }
+    localStorage.setItem("chess-journal-migrated", "1")
+  } catch { /* ignore */ }
+}
+
+async function migrateTauriDataDir() {
+  try {
+    const { appDataDir, dirname, join } = await import("@tauri-apps/api/path")
+    const { exists, readTextFile, writeTextFile } = await import("@tauri-apps/plugin-fs")
+
+    const newBase = await appDataDir()
+    const oldBase = await join(await dirname(newBase), "com.chess-mini.app")
+    const oldDataDir = await join(oldBase, "data")
+
+    if (!(await exists(oldDataDir))) return
+
+    const files = [AUTOSAVE, LIBRARY, PUZZLE_PROGRESS]
+    for (const file of files) {
+      const oldPath = await join(oldDataDir, file)
+      const newPath = await join(newBase, "data", file)
+
+      if ((await exists(oldPath)) && !(await exists(newPath))) {
+        try {
+          const content = await readTextFile(oldPath)
+          await writeTextFile(newPath, content)
+        } catch { /* skip individual file failures */ }
+      }
+    }
+  } catch { /* ignore — best effort */ }
 }
 
 export const usePersistenceStore = create<PersistenceState>((set, get) => ({
@@ -62,10 +107,13 @@ export const usePersistenceStore = create<PersistenceState>((set, get) => ({
   autosaveLoaded: false,
 
   init: async () => {
+    migrateLocalStorage()
+
     const dir = await resolveDataDir()
     const tauri = await tauriAvailable()
 
     if (tauri && dir !== "__local__") {
+      await migrateTauriDataDir()
       try {
         const { exists, mkdir } = await import("@tauri-apps/plugin-fs")
         const dirExists = await exists(dir)
@@ -126,7 +174,7 @@ export const usePersistenceStore = create<PersistenceState>((set, get) => ({
     }
 
     try {
-      localStorage.removeItem("chess-mini-autosave")
+      localStorage.removeItem("chess-journal-autosave")
     } catch { /* ignore */ }
   },
 
@@ -212,9 +260,9 @@ export const usePersistenceStore = create<PersistenceState>((set, get) => ({
     }
 
     try {
-      localStorage.removeItem("chess-mini-autosave")
-      localStorage.removeItem("chess-mini-library")
-      localStorage.removeItem("chess-mini-puzzle-progress")
+      localStorage.removeItem("chess-journal-autosave")
+      localStorage.removeItem("chess-journal-library")
+      localStorage.removeItem("chess-journal-puzzle-progress")
     } catch { /* ignore */ }
   },
 }))

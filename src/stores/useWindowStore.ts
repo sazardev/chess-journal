@@ -1,19 +1,42 @@
-import { getCurrentWindow } from "@tauri-apps/api/window"
+import { tauriAvailable } from "../lib/tauriGate"
 
-const appWindow = getCurrentWindow()
+let appWindow: {
+  minimize: () => Promise<void>
+  toggleMaximize: () => Promise<void>
+  close: () => Promise<void>
+  isMaximized: () => Promise<boolean>
+} | null = null
 
-export function minimize() {
-  appWindow.minimize()
+async function getWindow() {
+  if (!appWindow && tauriAvailable()) {
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window")
+      appWindow = getCurrentWindow()
+    } catch {
+      appWindow = null
+    }
+  }
+  return appWindow
+}
+
+export async function minimize() {
+  await (await getWindow())?.minimize()
 }
 
 export async function toggleMaximize() {
-  await appWindow.toggleMaximize()
+  await (await getWindow())?.toggleMaximize()
 }
 
-export function close() {
-  appWindow.close()
+export async function close() {
+  await (await getWindow())?.close()
 }
 
 export async function isMaximized(): Promise<boolean> {
-  return appWindow.isMaximized()
+  const w = await getWindow()
+  if (!w) return false
+  return w.isMaximized()
+}
+
+export function windowControlsAvailable(): boolean {
+  return tauriAvailable()
 }

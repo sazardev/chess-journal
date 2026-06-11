@@ -40,6 +40,7 @@ import { useEditorStore } from "./stores/useEditorStore"
 import { useAiStore } from "./stores/useAiStore"
 import { useAiCacheStore } from "./stores/useAiCacheStore"
 import { useAnalysisCacheStore } from "./stores/useAnalysisCacheStore"
+import { initTauriGate } from "./lib/tauriGate"
 import { newGame, saveNow, toggleCurrentFavorite } from "./lib/session"
 import type { Square } from "chess.js"
 
@@ -95,13 +96,15 @@ export default function App() {
   const restoredRef = useRef(false)
 
   useEffect(() => {
-    configInit().catch(() => {})
-    persistenceInit().catch(() => {})
-    useAiStore.getState().init().catch(() => {})
-    useAiCacheStore.getState().init().catch(() => {})
-    useAnalysisCacheStore.getState().init().catch(() => {})
-    // Silent check on launch — surfaces a dot on the version chip if newer.
-    useUpdateStore.getState().check(true).catch(() => {})
+    initTauriGate().then(() => {
+      configInit().catch(() => {})
+      persistenceInit().catch(() => {})
+      useAiStore.getState().init().catch(() => {})
+      useAiCacheStore.getState().init().catch(() => {})
+      useAnalysisCacheStore.getState().init().catch(() => {})
+      // Silent check on launch — surfaces a dot on the version chip if newer.
+      useUpdateStore.getState().check(true).catch(() => {})
+    })
   }, [])
 
   useEffect(() => {

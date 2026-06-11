@@ -9,9 +9,9 @@
  */
 
 import { create } from "zustand"
-import { load } from "@tauri-apps/plugin-store"
-import { posKey } from "./useAnalysisStore"
+import { createSettingsStorage, type SettingsStorage } from "../lib/settingsStorage"
 import type { PlyEval } from "../lib/moveQuality"
+import { posKey } from "./useAnalysisStore"
 
 type ByFen = Record<string, PlyEval>
 
@@ -27,18 +27,18 @@ interface AnalysisCacheState {
 /** Keep analysis for at most this many recent (game, preset) combinations. */
 const CAP = 25
 
-let store: Awaited<ReturnType<typeof load>> | null = null
-async function ensureStore() {
-  if (!store) store = await load("analysis-cache.json")
-  return store
+let storage: SettingsStorage | null = null
+async function ensureStorage() {
+  if (!storage) storage = await createSettingsStorage("analysis-cache.json")
+  return storage
 }
 async function persist(cache: Record<string, ByFen>) {
   try {
-    const st = await ensureStore()
+    const st = await ensureStorage()
     await st.set("cache", cache)
     await st.save()
   } catch {
-    /* not under Tauri (dev/test) or write failed — best effort */
+    /* not under Tauri (web) or write failed — best effort */
   }
 }
 
@@ -48,7 +48,7 @@ export const useAnalysisCacheStore = create<AnalysisCacheState>((set, get) => ({
 
   init: async () => {
     try {
-      const st = await ensureStore()
+      const st = await ensureStorage()
       const cache = (await st.get<Record<string, ByFen>>("cache")) ?? {}
       set({ cache, loaded: true })
     } catch {

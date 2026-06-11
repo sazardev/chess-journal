@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { load } from "@tauri-apps/plugin-store"
+import { createSettingsStorage, type SettingsStorage } from "../lib/settingsStorage"
 import { setSoundEnabled } from "../lib/sound"
 import { applyTheme, type ThemeMode } from "../lib/theme"
 
@@ -47,7 +47,6 @@ interface ConfigState extends AppConfig {
   openingAnalyzer: boolean
   sound: boolean
   theme: ThemeMode
-  /** Use the local LLM (when available) for richer commentary instead of templates. */
   aiCommentary: boolean
   engineConfig: EngineConfig
   init: () => Promise<void>
@@ -62,13 +61,13 @@ interface ConfigState extends AppConfig {
 }
 
 export const useConfigStore = create<ConfigState>((set) => {
-  let store: Awaited<ReturnType<typeof load>> | null = null
+  let storage: SettingsStorage | null = null
 
-  async function ensureStore() {
-    if (!store) {
-      store = await load("settings.json")
+  async function ensureStorage() {
+    if (!storage) {
+      storage = await createSettingsStorage("settings.json")
     }
-    return store
+    return storage
   }
 
   return {
@@ -83,7 +82,7 @@ export const useConfigStore = create<ConfigState>((set) => {
     engineConfig: resolveEngineConfig("balanced"),
 
     init: async () => {
-      const st = await ensureStore()
+      const st = await ensureStorage()
       const orientation = (await st.get<Orientation>("orientation")) ?? "white"
       const playSpeed = (await st.get<number>("playSpeed")) ?? 500
       const lastSeenVersion = (await st.get<string>("lastSeenVersion")) ?? ""
@@ -100,52 +99,52 @@ export const useConfigStore = create<ConfigState>((set) => {
 
     setOrientation: async (orientation) => {
       set({ orientation })
-      const st = await ensureStore()
+      const st = await ensureStorage()
       await st.set("orientation", orientation)
     },
 
     setPlaySpeed: async (playSpeed) => {
       set({ playSpeed })
-      const st = await ensureStore()
+      const st = await ensureStorage()
       await st.set("playSpeed", playSpeed)
     },
 
     setLastSeenVersion: async (lastSeenVersion) => {
       set({ lastSeenVersion })
-      const st = await ensureStore()
+      const st = await ensureStorage()
       await st.set("lastSeenVersion", lastSeenVersion)
     },
 
     setOpeningAnalyzer: async (openingAnalyzer) => {
       set({ openingAnalyzer })
-      const st = await ensureStore()
+      const st = await ensureStorage()
       await st.set("openingAnalyzer", openingAnalyzer)
     },
 
     setSound: async (sound) => {
       setSoundEnabled(sound)
       set({ sound })
-      const st = await ensureStore()
+      const st = await ensureStorage()
       await st.set("sound", sound)
     },
 
     setTheme: async (theme) => {
       applyTheme(theme)
       set({ theme })
-      const st = await ensureStore()
+      const st = await ensureStorage()
       await st.set("theme", theme)
     },
 
     setAiCommentary: async (aiCommentary) => {
       set({ aiCommentary })
-      const st = await ensureStore()
+      const st = await ensureStorage()
       await st.set("aiCommentary", aiCommentary)
     },
 
     setEnginePreset: async (preset) => {
       const engineConfig = resolveEngineConfig(preset)
       set({ engineConfig })
-      const st = await ensureStore()
+      const st = await ensureStorage()
       await st.set("enginePreset", preset)
     },
   }

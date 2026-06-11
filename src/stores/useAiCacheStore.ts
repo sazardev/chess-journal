@@ -6,7 +6,7 @@
  */
 
 import { create } from "zustand"
-import { load } from "@tauri-apps/plugin-store"
+import { createSettingsStorage, type SettingsStorage } from "../lib/settingsStorage"
 import { posKey } from "./useAnalysisStore"
 
 interface AiCacheState {
@@ -19,18 +19,18 @@ interface AiCacheState {
   clear: () => void
 }
 
-let store: Awaited<ReturnType<typeof load>> | null = null
-async function ensureStore() {
-  if (!store) store = await load("ai-cache.json")
-  return store
+let storage: SettingsStorage | null = null
+async function ensureStorage() {
+  if (!storage) storage = await createSettingsStorage("ai-cache.json")
+  return storage
 }
 async function persist(field: "moves" | "games", value: Record<string, string>) {
   try {
-    const st = await ensureStore()
+    const st = await ensureStorage()
     await st.set(field, value)
     await st.save()
   } catch {
-    /* not under Tauri (dev/test) or write failed — best effort */
+    /* not under Tauri (web) or write failed — best effort */
   }
 }
 
@@ -41,7 +41,7 @@ export const useAiCacheStore = create<AiCacheState>((set, get) => ({
 
   init: async () => {
     try {
-      const st = await ensureStore()
+      const st = await ensureStorage()
       const moves = (await st.get<Record<string, string>>("moves")) ?? {}
       const games = (await st.get<Record<string, string>>("games")) ?? {}
       set({ moves, games, loaded: true })

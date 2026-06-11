@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react"
-import { minimize, toggleMaximize, close, isMaximized } from "../stores/useWindowStore"
+import { minimize, toggleMaximize, close, isMaximized, windowControlsAvailable } from "../stores/useWindowStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { useGameStore } from "../stores/useGameStore"
 import { useLibraryStore } from "../stores/useLibraryStore"
@@ -104,7 +104,7 @@ export default function TitleBar({
           </span>
         </div>
         {/* Right: window controls on desktop, spacer on touch */}
-        {touch ? (
+        {touch || !windowControlsAvailable() ? (
           <div className="w-2" aria-hidden />
         ) : (
         <div className="flex items-center">
@@ -230,7 +230,7 @@ export default function TitleBar({
       </div>
 
       {/* Right: window controls (desktop only) */}
-      {touch ? (
+      {touch || !windowControlsAvailable() ? (
         <div className="w-2" aria-hidden />
       ) : (
       <div className="flex items-center">

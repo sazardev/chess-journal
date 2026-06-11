@@ -6,11 +6,9 @@
  */
 
 import { create } from "zustand"
-import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
+import { isTauri } from "../lib/tauriGate"
 import { detectCapability, type Capability } from "../lib/ai/capability"
 import { findModel, DEFAULT_MODEL_ID, setRuntime, unavailableRuntime } from "../lib/ai/runtime"
-import { tauriRuntime } from "../lib/ai/tauriRuntime"
 import { useConfigStore } from "./useConfigStore"
 import { useAiCacheStore } from "./useAiCacheStore"
 
@@ -20,21 +18,27 @@ interface AiState {
   capability: Capability
   modelId: string
   phase: AiPhase
-  /** User-facing step label while preparing (no technical names). */
   step: string
-  /** Progress 0..1 for a download step (0 for indeterminate steps like starting). */
   progress: number
   error: string | null
-  /** Whether any AI assets are on disk (model and/or engine). */
   assetsPresent: boolean
   init: () => Promise<void>
   enable: () => Promise<void>
   disable: () => Promise<void>
-  /** Stop the engine and delete all downloaded AI assets; turns AI off. */
   removeAssets: () => Promise<void>
 }
 
 const DOWNLOAD_STEP = "Downloading AI assets…"
+
+async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  const { invoke } = await import("@tauri-apps/api/core")
+  return invoke<T>(cmd, args)
+}
+
+async function listenTauri<T>(event: string, handler: (payload: T) => void) {
+  const { listen } = await import("@tauri-apps/api/event")
+  return listen<T>(event, (e) => handler(e.payload))
+}
 
 export const useAiStore = create<AiState>((set, get) => ({
   capability: { deviceMemoryGb: null, cores: 4, tier: "unknown", reason: "" },
@@ -46,25 +50,33 @@ export const useAiStore = create<AiState>((set, get) => ({
   assetsPresent: false,
 
   init: async () => {
+    if (!(await isTauri())) {
+      set({ phase: "unsupported" })
+      return
+    }
     const capability = detectCapability()
     let assetsPresent = false
     try {
       const model = findModel(get().modelId)
       const hasModel = model
-        ? await invoke<boolean>("ai_model_exists", { fileName: model.fileName })
+        ? await invokeTauri<boolean>("ai_model_exists", { fileName: model.fileName })
         : false
-      const hasEngine = await invoke<boolean>("ai_server_installed")
+      const hasEngine = await invokeTauri<boolean>("ai_server_installed")
       assetsPresent = hasModel || hasEngine
     } catch {
-      /* not under Tauri (dev/test) */
+      /* not under Tauri (web) */
     }
     set({ capability, phase: capability.tier === "unsupported" ? "unsupported" : "idle", assetsPresent })
   },
 
   enable: async () => {
     const { phase, capability } = get()
-    if (phase === "preparing" || phase === "ready") return // already on / in progress
+    if (phase === "preparing" || phase === "ready") return
     if (capability.tier === "unsupported") {
+      set({ phase: "unsupported" })
+      return
+    }
+    if (!(await isTauri())) {
       set({ phase: "unsupported" })
       return
     }
@@ -77,58 +89,56 @@ export const useAiStore = create<AiState>((set, get) => ({
     set({ phase: "preparing", step: "Preparing AI…", progress: 0, error: null })
     try {
       // 1) AI assets: the model.
-      const hasModel = await invoke<boolean>("ai_model_exists", { fileName: model.fileName }).catch(
+      const hasModel = await invokeTauri<boolean>("ai_model_exists", { fileName: model.fileName }).catch(
         () => false,
       )
       if (!hasModel) {
         set({ step: DOWNLOAD_STEP, progress: 0 })
-        const un = await listen<{ downloaded: number; total: number }>(
+        const un = await listenTauri<{ downloaded: number; total: number }>(
           "ai-download-progress",
           (e) => {
-            const { downloaded, total } = e.payload
+            const { downloaded, total } = e
             set({ progress: total > 0 ? Math.min(1, downloaded / total) : 0 })
           },
         )
         try {
-          await invoke("ai_download", { url: model.url, fileName: model.fileName })
+          await invokeTauri("ai_download", { url: model.url, fileName: model.fileName })
         } finally {
           un()
         }
       }
 
       // 2) AI assets: the engine.
-      const hasEngine = await invoke<boolean>("ai_server_installed").catch(() => false)
+      const hasEngine = await invokeTauri<boolean>("ai_server_installed").catch(() => false)
       if (!hasEngine) {
         set({ step: DOWNLOAD_STEP, progress: 0 })
-        const un = await listen<{ downloaded: number; total: number }>(
+        const un = await listenTauri<{ downloaded: number; total: number }>(
           "ai-engine-progress",
           (e) => {
-            const { downloaded, total } = e.payload
+            const { downloaded, total } = e
             set({ progress: total > 0 ? Math.min(1, downloaded / total) : 0 })
           },
         )
         try {
-          await invoke("ai_server_install")
+          await invokeTauri("ai_server_install")
         } finally {
           un()
         }
       }
 
-      // The user may have toggled AI off while assets were downloading.
       if (!useConfigStore.getState().aiCommentary) {
         set({ phase: "idle", step: "", progress: 0 })
         return
       }
 
-      // Both assets are on disk now.
       set({ assetsPresent: true })
 
       // 3) Start (loads the model into memory).
       set({ step: "Starting AI…", progress: 0 })
-      await invoke("ai_start", { modelFile: model.fileName })
+      await invokeTauri("ai_start", { modelFile: model.fileName })
       if (!useConfigStore.getState().aiCommentary) {
         try {
-          await invoke("ai_stop")
+          await invokeTauri("ai_stop")
         } catch {
           /* ignore */
         }
@@ -136,6 +146,8 @@ export const useAiStore = create<AiState>((set, get) => ({
         set({ phase: "idle", step: "", progress: 0 })
         return
       }
+      // Lazy-import the Tauri runtime only when AI is confirmed on.
+      const { tauriRuntime } = await import("../lib/ai/tauriRuntime")
       setRuntime(tauriRuntime)
       set({ phase: "ready", step: "", progress: 1, error: null })
     } catch (e) {
@@ -146,10 +158,12 @@ export const useAiStore = create<AiState>((set, get) => ({
   },
 
   disable: async () => {
-    try {
-      await invoke("ai_stop")
-    } catch {
-      /* ignore — best effort */
+    if (await isTauri()) {
+      try {
+        await invokeTauri("ai_stop")
+      } catch {
+        /* ignore — best effort */
+      }
     }
     setRuntime(unavailableRuntime)
     set({
@@ -161,15 +175,16 @@ export const useAiStore = create<AiState>((set, get) => ({
   },
 
   removeAssets: async () => {
-    // Turn AI off first so the App effect doesn't re-download, then stop + delete.
     useConfigStore.getState().setAiCommentary(false)
     await get().disable()
-    try {
-      await invoke("ai_remove_all")
-    } catch {
-      /* ignore — best effort */
+    if (await isTauri()) {
+      try {
+        await invokeTauri("ai_remove_all")
+      } catch {
+        /* ignore — best effort */
+      }
     }
-    useAiCacheStore.getState().clear() // comments were tied to the removed model
+    useAiCacheStore.getState().clear()
     set({
       assetsPresent: false,
       phase: get().capability.tier === "unsupported" ? "unsupported" : "idle",

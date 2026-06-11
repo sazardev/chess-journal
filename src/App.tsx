@@ -36,6 +36,7 @@ import { usePersistenceStore } from "./stores/usePersistenceStore"
 import { usePuzzleStore } from "./stores/usePuzzleStore"
 import { usePuzzleProgressStore } from "./stores/usePuzzleProgressStore"
 import { useEditorStore } from "./stores/useEditorStore"
+import { useAiStore } from "./stores/useAiStore"
 import { newGame, saveNow, toggleCurrentFavorite } from "./lib/session"
 import type { Square } from "chess.js"
 
@@ -92,6 +93,7 @@ export default function App() {
   useEffect(() => {
     configInit().catch(() => {})
     persistenceInit().catch(() => {})
+    useAiStore.getState().init().catch(() => {})
     // Silent check on launch — surfaces a dot on the version chip if newer.
     useUpdateStore.getState().check(true).catch(() => {})
   }, [])

@@ -1,5 +1,6 @@
 import DataActions from "./DataActions"
 import ThemeToggle from "./ThemeToggle"
+import AiSettings from "./AiSettings"
 import { useConfigStore } from "../stores/useConfigStore"
 
 export default function SettingsPanel({ onClose }: { onClose: () => void }) {
@@ -46,6 +47,11 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
           <span className="font-mono text-[11px] text-black">Theme</span>
           <ThemeToggle size="sm" />
         </div>
+
+        <p className="px-4 pt-4 pb-2 font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400">
+          AI
+        </p>
+        <AiSettings size="sm" />
 
         <p className="px-4 pt-4 pb-2 font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400">
           Data

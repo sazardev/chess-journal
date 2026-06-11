@@ -47,6 +47,8 @@ interface ConfigState extends AppConfig {
   openingAnalyzer: boolean
   sound: boolean
   theme: ThemeMode
+  /** Use the local LLM (when available) for richer commentary instead of templates. */
+  aiCommentary: boolean
   engineConfig: EngineConfig
   init: () => Promise<void>
   setOrientation: (orientation: Orientation) => void
@@ -55,6 +57,7 @@ interface ConfigState extends AppConfig {
   setOpeningAnalyzer: (on: boolean) => void
   setSound: (on: boolean) => void
   setTheme: (mode: ThemeMode) => void
+  setAiCommentary: (on: boolean) => void
   setEnginePreset: (preset: EnginePresetId) => void
 }
 
@@ -76,6 +79,7 @@ export const useConfigStore = create<ConfigState>((set) => {
     openingAnalyzer: true,
     sound: true,
     theme: "system",
+    aiCommentary: false,
     engineConfig: resolveEngineConfig("balanced"),
 
     init: async () => {
@@ -86,11 +90,12 @@ export const useConfigStore = create<ConfigState>((set) => {
       const openingAnalyzer = (await st.get<boolean>("openingAnalyzer")) ?? true
       const sound = (await st.get<boolean>("sound")) ?? true
       const theme = (await st.get<ThemeMode>("theme")) ?? "system"
+      const aiCommentary = (await st.get<boolean>("aiCommentary")) ?? false
       const enginePreset = (await st.get<EnginePresetId>("enginePreset")) ?? "balanced"
       const engineConfig = resolveEngineConfig(enginePreset)
       setSoundEnabled(sound)
       applyTheme(theme)
-      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, sound, theme, engineConfig, loaded: true })
+      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, sound, theme, aiCommentary, engineConfig, loaded: true })
     },
 
     setOrientation: async (orientation) => {
@@ -129,6 +134,12 @@ export const useConfigStore = create<ConfigState>((set) => {
       set({ theme })
       const st = await ensureStore()
       await st.set("theme", theme)
+    },
+
+    setAiCommentary: async (aiCommentary) => {
+      set({ aiCommentary })
+      const st = await ensureStore()
+      await st.set("aiCommentary", aiCommentary)
     },
 
     setEnginePreset: async (preset) => {

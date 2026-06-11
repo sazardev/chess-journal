@@ -4,6 +4,7 @@ import { useConfigStore } from "../stores/useConfigStore"
 import { usePlatform } from "../hooks/usePlatform"
 import DataActions from "./DataActions"
 import ThemeToggle from "./ThemeToggle"
+import AiSettings from "./AiSettings"
 import ShortcutsList from "./ShortcutsList"
 import Changelog from "./Changelog"
 
@@ -76,6 +77,10 @@ export default function MobileSettings({ onErased }: { onErased?: () => void }) 
         <span className="font-mono text-[12px] text-black">Theme</span>
         <ThemeToggle size="md" />
       </div>
+
+      {/* AI */}
+      {section("AI")}
+      <AiSettings size="md" />
 
       {/* Update */}
       {section("Updates")}

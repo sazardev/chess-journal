@@ -227,6 +227,37 @@ export function buildGameReport(
   }
 }
 
+/**
+ * A short, deterministic English summary of the report (Tier 0). This is also the
+ * baseline the Tier 1 LLM is asked to expand into richer prose.
+ */
+export function summarizeReport(report: GameReport, openingName?: string | null): string {
+  if (report.coveredPlies === 0) return "Run the engine analysis to generate a summary."
+
+  const sidePhrase = (label: string, s: SideReport): string => {
+    if (!s.scored) return `${label} wasn't analyzed`
+    const elo = s.estimatedElo ? ` (${s.estimatedElo.band})` : ""
+    return `${label} played at ${s.accuracy.toFixed(0)}%${elo}`
+  }
+
+  const opening = openingName ? `In the ${openingName}, ` : ""
+  const parts: string[] = [
+    `${opening}${sidePhrase("White", report.white)} and ${sidePhrase("Black", report.black)}.`,
+  ]
+
+  const blunders = report.white.blunders + report.black.blunders
+  if (blunders > 0) {
+    parts.push(`${blunders} blunder${blunders > 1 ? "s" : ""} shaped the critical moments.`)
+  } else if (report.improvements.length > 0) {
+    parts.push("A few inaccuracies aside, it was solidly played.")
+  } else {
+    parts.push("A clean game with no major mistakes.")
+  }
+
+  if (report.weakestPhase) parts.push(`Weakest phase: the ${report.weakestPhase}.`)
+  return parts.join(" ")
+}
+
 function pickWeakestPhase(
   perMove: MovePoint[],
   totalPlies: number,

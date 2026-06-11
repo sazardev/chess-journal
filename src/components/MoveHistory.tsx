@@ -1,11 +1,14 @@
 import { useRef, useEffect, useState, useMemo } from "react"
 import { useGameStore } from "../stores/useGameStore"
 import { useAnalysisStore, posKey } from "../stores/useAnalysisStore"
+import { useAiStore } from "../stores/useAiStore"
+import { useAiCacheStore, moveCacheKey } from "../stores/useAiCacheStore"
 import { useOpeningStore } from "../stores/useOpeningStore"
 import { classifyMove, nagColor, type Nag } from "../lib/moveQuality"
 import { detectMotifs, type Motif } from "../lib/motifs"
-import { explainMove, type MoveExplanation, type ExplainTone } from "../lib/explain"
-import { uciToSan } from "../lib/uci"
+import { type MoveExplanation, type ExplainTone } from "../lib/explain"
+import { buildMoveContext } from "../lib/ai/explainContext"
+import { useExplainer } from "../hooks/useExplainer"
 import OpeningChip from "./OpeningChip"
 
 /** Display colour for an explanation tone, coherent with the NAG heatmap. */
@@ -46,6 +49,8 @@ export default function MoveHistory() {
   const markMode = useAnalysisStore((s) => s.markMode)
   const byFen = useAnalysisStore((s) => s.byFen)
   const lastBookPly = useOpeningStore((s) => s.current?.lastBookPly ?? 0)
+  const openingName = useOpeningStore((s) => s.current?.name ?? null)
+  const explainer = useExplainer()
 
   const [editingComment, setEditingComment] = useState<number | null>(null)
   const [commentValue, setCommentValue] = useState("")
@@ -79,7 +84,8 @@ export default function MoveHistory() {
     return out
   }, [markMode, history])
 
-  // One-line plain-language explanation per move (engine facts → prose).
+  // One-line plain-language explanation per move, via the active explainer
+  // (Tier 0 templates, or the local LLM when enabled and ready).
   const explanations = useMemo(() => {
     const out: Record<number, MoveExplanation> = {}
     if (!markMode) return out
@@ -88,22 +94,96 @@ export default function MoveHistory() {
       const before = byFen[posKey(mv.before)]
       const after = byFen[posKey(mv.after)]
       if (!before && !after) continue
-      const moverIsWhite = mv.color === "w"
-      const nag = before && after ? classifyMove(moverIsWhite, before, after, mv.lan) : null
-      const bestSan = before?.bestUci ? uciToSan(mv.before, before.bestUci) : null
-      const exp = explainMove({
-        moverIsWhite,
+      const ctx = buildMoveContext({
+        mv,
         before,
         after,
-        nag,
         motifs: motifsByPly[i] ?? [],
-        bestSan,
-        isBookMove: i < lastBookPly,
+        ply: i,
+        totalPlies: history.length,
+        lastBookPly,
+        openingName,
       })
+      const exp = explainer.explainMove(ctx)
       if (exp) out[i] = exp
     }
     return out
-  }, [markMode, history, byFen, motifsByPly, lastBookPly])
+  }, [markMode, history, byFen, motifsByPly, lastBookPly, openingName, explainer])
+
+  const isLlm = explainer.kind === "llm"
+  const [moveComment, setMoveComment] = useState("")
+  const [moveStreaming, setMoveStreaming] = useState(false)
+
+  // Whether the active move has a cached eval — a STABLE trigger (boolean), so the
+  // live engine deepening its eval (mutating `byFen` repeatedly) doesn't restart
+  // generation. We only (re)generate on navigation or when the eval first lands.
+  const genMv = history[historyIndex - 1]
+  const activeEvalReady = !!(
+    genMv &&
+    (byFen[posKey(genMv.before)] || byFen[posKey(genMv.after)])
+  )
+
+  // When the LLM is active, stream a prose comment for the *current* move only
+  // (debounced; cancelled when you move on). The template line shows meanwhile.
+  useEffect(() => {
+    if (!isLlm || !markMode || !activeEvalReady) return
+    const ply = historyIndex - 1
+    const mv = history[ply]
+    if (!mv) return
+    const key = moveCacheKey(useAiStore.getState().modelId, mv.before, mv.lan)
+    const cached = useAiCacheStore.getState().moves[key]
+    let cancelled = false
+    const timer = setTimeout(() => {
+      // Already generated this move before → show it instantly, no inference.
+      if (cached !== undefined) {
+        setMoveComment(cached)
+        setMoveStreaming(false)
+        return
+      }
+      // Read the latest evals now (not as a dep) so deepening doesn't re-fire.
+      const bf = useAnalysisStore.getState().byFen
+      const before = bf[posKey(mv.before)]
+      const after = bf[posKey(mv.after)]
+      if (!before && !after) return
+      const ctx = buildMoveContext({
+        mv,
+        before,
+        after,
+        motifs: motifsByPly[ply] ?? [],
+        ply,
+        totalPlies: history.length,
+        lastBookPly,
+        openingName,
+      })
+      // setState lives inside this callback (not synchronously in the effect body).
+      setMoveComment("")
+      setMoveStreaming(true)
+      let acc = ""
+      explainer
+        .streamMove(ctx, (tok) => {
+          if (!cancelled) {
+            acc += tok
+            setMoveComment(acc)
+          }
+        })
+        .then((full) => {
+          if (cancelled) return
+          const text = full || acc
+          setMoveComment(text)
+          if (text) useAiCacheStore.getState().setMove(key, text)
+        })
+        .catch(() => {
+          if (!cancelled) setMoveComment("")
+        })
+        .finally(() => {
+          if (!cancelled) setMoveStreaming(false)
+        })
+    }, cached !== undefined ? 0 : 400)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [isLlm, markMode, activeEvalReady, historyIndex, history, motifsByPly, lastBookPly, openingName, explainer])
 
   // Keep the current move in view — works for long games and during playback.
   useEffect(() => {
@@ -131,6 +211,11 @@ export default function MoveHistory() {
 
   const atEnd = historyIndex >= history.length
   const activePly = historyIndex - 1
+  const activeExp = explanations[activePly]
+  // On the active move, prefer the streamed LLM comment once it has text; the
+  // template line is the instant placeholder/fallback.
+  const activeText = isLlm && moveComment ? moveComment : (activeExp?.text ?? "")
+  const activeTone = activeExp?.tone ?? "neutral"
 
   return (
     <div className="flex flex-col max-h-40 md:h-full md:max-h-none">
@@ -324,16 +409,18 @@ export default function MoveHistory() {
                 )}
               </div>
 
-              {explanations[activePly] && (activePly === whiteIdx || activePly === blackIdx) && (
-                <div className="pl-7 md:pl-8 pr-3 pb-1">
-                  <span
-                    className="block font-mono text-[9px] leading-snug"
-                    style={{ color: toneColor(explanations[activePly].tone) }}
-                  >
-                    {explanations[activePly].text}
-                  </span>
-                </div>
-              )}
+              {(activePly === whiteIdx || activePly === blackIdx) &&
+                (activeText || (isLlm && moveStreaming)) && (
+                  <div className="pl-7 md:pl-8 pr-3 pb-1">
+                    <span
+                      className="block font-mono text-[9px] leading-snug"
+                      style={{ color: toneColor(activeTone) }}
+                    >
+                      {activeText}
+                      {isLlm && moveStreaming && <span className="text-gray-300"> ▍</span>}
+                    </span>
+                  </div>
+                )}
 
               {editingComment === whiteIdx && (
                 <div className="flex items-center gap-1 pl-7 md:pl-8 pr-3 py-1">

@@ -27,7 +27,12 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-store = "2"
 
-# Desktop-only plugins (auto-update + relaunch). Not built for Android/iOS.
+# Desktop-only plugins (auto-update + relaunch) plus the local-AI model
+# downloader. Not built for Android/iOS (mobile inference uses a native path).
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+reqwest = { version = "0.12", features = ["stream", "json"] }
+futures-util = "0.3"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+tokio = { version = "1", features = ["time"] }

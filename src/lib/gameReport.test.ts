@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import type { Move } from "chess.js"
 import type { PlyEval } from "./moveQuality"
-import { buildGameReport, winPct, moveAccuracy, acplToEloBand } from "./gameReport"
+import { buildGameReport, winPct, moveAccuracy, acplToEloBand, summarizeReport } from "./gameReport"
 
 // Minimal Move stand-in. `before`/`after` use space-free tokens so posKey (which
 // keeps the first 4 FEN fields) maps each to a distinct byFen key.
@@ -116,5 +116,24 @@ describe("buildGameReport", () => {
     )
     expect(r.black.scored).toBe(1)
     expect(r.white.scored).toBe(0)
+  })
+})
+
+describe("summarizeReport", () => {
+  const byFen = { p0: ev(0), p1: ev(-300), p2: ev(-290) }
+  const game: Move[] = [
+    mv({ color: "w", before: "p0", after: "p1", san: "Qh5", lan: "d1h5" }),
+    mv({ color: "b", before: "p1", after: "p2", san: "Nc6", lan: "b8c6" }),
+  ]
+
+  it("prompts to analyze when nothing is covered", () => {
+    expect(summarizeReport(buildGameReport([], {}))).toContain("Run the engine analysis")
+  })
+
+  it("summarizes accuracy and names the opening", () => {
+    const s = summarizeReport(buildGameReport(game, byFen), "Italian Game")
+    expect(s).toContain("White")
+    expect(s).toContain("%")
+    expect(s).toContain("Italian Game")
   })
 })

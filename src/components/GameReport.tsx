@@ -1,9 +1,14 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useGameStore, START_FEN } from "../stores/useGameStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
+import { useAiStore } from "../stores/useAiStore"
+import { useAiCacheStore, gameCacheKey } from "../stores/useAiCacheStore"
 import { useOpeningStore } from "../stores/useOpeningStore"
 import { getOpeningsCache, detectOpening } from "../lib/openings"
 import { buildGameReport, type SideReport } from "../lib/gameReport"
+import { buildGameContext } from "../lib/ai/explainContext"
+import { templateExplainer } from "../lib/ai/explainer"
+import { useExplainer } from "../hooks/useExplainer"
 
 interface Props {
   onClose: () => void
@@ -31,6 +36,73 @@ export default function GameReport({ onClose }: Props) {
     () => buildGameReport(history, byFen, { bookPlies }),
     [history, byFen, bookPlies],
   )
+
+  const openingName = startFen === START_FEN ? (current?.name ?? null) : null
+  const explainer = useExplainer()
+  const isLlm = explainer.kind === "llm"
+
+  // Instant Tier 0 summary — also the placeholder/fallback while the LLM streams.
+  const templateSummary = useMemo(
+    () => (report.coveredPlies > 0 ? templateExplainer.explainGame(buildGameContext(report, openingName)) : ""),
+    [report, openingName],
+  )
+  const [llmText, setLlmText] = useState("")
+  const [streaming, setStreaming] = useState(false)
+
+  // Read the report via a ref (kept fresh in an effect, not during render) so the
+  // live engine deepening its evals doesn't restart generation. `reportReady` is a
+  // stable boolean: fires once when coverage lands, never on deepening.
+  const reportRef = useRef(report)
+  useEffect(() => {
+    reportRef.current = report
+  }, [report])
+  const reportReady = report.coveredPlies > 0
+
+  useEffect(() => {
+    if (!isLlm || !reportReady) return
+    let cancelled = false
+    // setState happens inside this async fn (not synchronously in the effect body).
+    const run = async () => {
+      const key = gameCacheKey(
+        useAiStore.getState().modelId,
+        history.map((m) => m.lan),
+        reportRef.current.coveredPlies,
+      )
+      const cached = useAiCacheStore.getState().games[key]
+      if (cached) {
+        // Already generated for this game/coverage → show it instantly.
+        setLlmText(cached)
+        setStreaming(false)
+        return
+      }
+      const ctx = buildGameContext(reportRef.current, openingName)
+      setStreaming(true)
+      setLlmText("")
+      let acc = ""
+      try {
+        const full = await explainer.streamGame(ctx, (tok) => {
+          if (cancelled) return
+          acc += tok
+          setLlmText(acc)
+        })
+        if (!cancelled) {
+          const text = full || acc
+          setLlmText(text)
+          if (text) useAiCacheStore.getState().setGame(key, text)
+        }
+      } catch {
+        if (!cancelled) setLlmText("") // fall back to the template summary
+      } finally {
+        if (!cancelled) setStreaming(false)
+      }
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [isLlm, reportReady, openingName, explainer, history])
+
+  const summary = isLlm && llmText ? llmText : templateSummary
 
   const jump = (ply: number) => {
     goToMove(ply + 1)
@@ -66,6 +138,13 @@ export default function GameReport({ onClose }: Props) {
             </p>
           ) : (
             <>
+              {(summary || streaming) && (
+                <p className="border-b border-gray-100 px-4 py-3 font-mono text-[10px] leading-relaxed text-black">
+                  {summary}
+                  {streaming && <span className="text-gray-300"> ▍</span>}
+                </p>
+              )}
+
               <div className="grid grid-cols-2 border-b border-gray-100">
                 <SideColumn title="White" side={report.white} />
                 <SideColumn title="Black" side={report.black} className="border-l border-gray-100" />

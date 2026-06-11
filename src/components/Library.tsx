@@ -5,6 +5,7 @@ import { usePersistenceStore } from "../stores/usePersistenceStore"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
+import { useEditorStore } from "../stores/useEditorStore"
 import { newGame } from "../lib/session"
 import { useTouch } from "../hooks/useTouch"
 import OpeningStats from "./OpeningStats"
@@ -93,6 +94,7 @@ export default function Library({ open, onToggle }: Props) {
   const handleLoad = useCallback(
     (entryId: string) => {
       usePuzzleStore.getState().exit()
+      useEditorStore.getState().exit()
 
       const state = useLibraryStore.getState()
       const entry = state.entries.find((e) => e.id === entryId)
@@ -194,6 +196,7 @@ export default function Library({ open, onToggle }: Props) {
 
   const handleLoadClassic = useCallback((g: ClassicGame) => {
     usePuzzleStore.getState().exit()
+    useEditorStore.getState().exit()
     // loadClassic sets the working game as transient (autosave skips it).
     useGameStore.getState().loadClassic(g.moves)
     useMetaStore.getState().load({
@@ -214,6 +217,7 @@ export default function Library({ open, onToggle }: Props) {
 
   const handleStartPuzzle = useCallback(
     (queue: Puzzle[], index: number) => {
+      useEditorStore.getState().exit()
       usePuzzleStore.getState().load(queue, index)
       if (window.innerWidth < 1024) onToggle()
     },

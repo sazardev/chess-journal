@@ -1,8 +1,13 @@
 import { create } from "zustand"
 import { Chess, type Move, type Square } from "chess.js"
 
+/** The standard chess starting position — the default `startFen` for normal games. */
+export const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
 export interface GameState {
   fen: string
+  /** Position the game starts from (standard start, or a custom editor position). */
+  startFen: string
   fullHistory: Move[]
   historyIndex: number
   orientation: "white" | "black"
@@ -31,9 +36,12 @@ export interface GameState {
   flipBoard: () => void
   reset: () => void
   loadFen: (fen: string) => void
+  /** Set a custom starting position, keeping the linked library entry (editor save). */
+  setStartPosition: (fen: string) => void
   loadPgn: (pgn: string) => void
   loadClassic: (moves: string) => void
   restoreState: (state: {
+    startFen?: string
     fullHistory: Move[]
     historyIndex: number
     orientation: "white" | "black"
@@ -66,8 +74,8 @@ function computeState(game: Chess, historyIndex: number) {
   }
 }
 
-function rebuildGame(game: Chess, fullHistory: Move[], upTo: number) {
-  game.reset()
+function rebuildGame(game: Chess, fullHistory: Move[], upTo: number, startFen: string) {
+  game.load(startFen)
   for (let i = 0; i < upTo; i++) {
     game.move(fullHistory[i].san)
   }
@@ -78,6 +86,7 @@ export const useGameStore = create<GameState>((set, get) => {
 
   return {
     game,
+    startFen: START_FEN,
     fullHistory: [],
     ...computeState(game, 0),
     orientation: "white",
@@ -91,9 +100,9 @@ export const useGameStore = create<GameState>((set, get) => {
     setCurrentLibraryId: (id: string | null) => set({ currentLibraryId: id }),
 
     makeMove: (from, to, promotion) => {
-      const { game, fullHistory, historyIndex } = get()
+      const { game, fullHistory, historyIndex, startFen } = get()
       try {
-        rebuildGame(game, fullHistory, historyIndex)
+        rebuildGame(game, fullHistory, historyIndex, startFen)
 
         const piece = game.get(from)
         if (piece && piece.type === "p") {
@@ -117,9 +126,9 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     makeMoveSan: (san) => {
-      const { game, fullHistory, historyIndex } = get()
+      const { game, fullHistory, historyIndex, startFen } = get()
       try {
-        rebuildGame(game, fullHistory, historyIndex)
+        rebuildGame(game, fullHistory, historyIndex, startFen)
 
         const result = game.move(san)
         if (!result) return false
@@ -137,21 +146,21 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     goToStart: () => {
-      const { game } = get()
-      game.reset()
+      const { game, startFen } = get()
+      game.load(startFen)
       set({ ...computeState(game, 0), isPlaying: false })
     },
 
     goToEnd: () => {
-      const { game, fullHistory } = get()
-      rebuildGame(game, fullHistory, fullHistory.length)
+      const { game, fullHistory, startFen } = get()
+      rebuildGame(game, fullHistory, fullHistory.length, startFen)
       set({ ...computeState(game, fullHistory.length), isPlaying: false })
     },
 
     goBack: () => {
-      const { game, historyIndex, fullHistory } = get()
+      const { game, historyIndex, fullHistory, startFen } = get()
       if (historyIndex < 1) return
-      rebuildGame(game, fullHistory, historyIndex - 1)
+      rebuildGame(game, fullHistory, historyIndex - 1, startFen)
       set(computeState(game, historyIndex - 1))
     },
 
@@ -163,8 +172,8 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     goToMove: (index) => {
-      const { game, fullHistory } = get()
-      rebuildGame(game, fullHistory, index)
+      const { game, fullHistory, startFen } = get()
+      rebuildGame(game, fullHistory, index, startFen)
       set(computeState(game, index))
     },
 
@@ -177,6 +186,7 @@ export const useGameStore = create<GameState>((set, get) => {
       const g = new Chess()
       set({
         game: g,
+        startFen: START_FEN,
         fullHistory: [],
         ...computeState(g, 0),
         orientation: "white",
@@ -192,6 +202,7 @@ export const useGameStore = create<GameState>((set, get) => {
       const g = new Chess(fen)
       set({
         game: g,
+        startFen: fen,
         fullHistory: [],
         ...computeState(g, 0),
         bookmarks: [],
@@ -201,12 +212,30 @@ export const useGameStore = create<GameState>((set, get) => {
       })
     },
 
+    setStartPosition: (fen) => {
+      const g = new Chess(fen)
+      set({
+        game: g,
+        startFen: fen,
+        fullHistory: [],
+        ...computeState(g, 0),
+        bookmarks: [],
+        comments: {},
+        // keep currentLibraryId / orientation / meta — this edits the same game
+        transient: false,
+      })
+    },
+
     loadPgn: (pgn) => {
       const g = new Chess()
       g.loadPgn(pgn)
       const fullHistory = g.history({ verbose: true })
+      // A PGN may set up a custom position via a FEN header — derive it from the
+      // first move's `before` FEN (falling back to the loaded position).
+      const startFen = fullHistory.length > 0 ? fullHistory[0].before : g.fen()
       set({
         game: g,
+        startFen,
         fullHistory,
         ...computeState(g, fullHistory.length),
         bookmarks: [],
@@ -230,6 +259,7 @@ export const useGameStore = create<GameState>((set, get) => {
       const g = new Chess() // start at move 0 so the game can be replayed
       set({
         game: g,
+        startFen: START_FEN,
         fullHistory,
         ...computeState(g, 0),
         orientation: "white",
@@ -243,9 +273,11 @@ export const useGameStore = create<GameState>((set, get) => {
 
     restoreState: (state) => {
       const g = new Chess()
-      rebuildGame(g, state.fullHistory, state.historyIndex)
+      const startFen = state.startFen ?? START_FEN
+      rebuildGame(g, state.fullHistory, state.historyIndex, startFen)
       set({
         game: g,
+        startFen,
         fullHistory: state.fullHistory,
         ...computeState(g, state.historyIndex),
         orientation: state.orientation,
@@ -259,8 +291,8 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     getPgn: () => {
-      const { fullHistory, comments } = get()
-      const g = new Chess()
+      const { fullHistory, comments, startFen } = get()
+      const g = new Chess(startFen)
       for (let i = 0; i < fullHistory.length; i++) {
         const comment = comments[i]
         g.move(

@@ -21,6 +21,7 @@ import { useAutosave } from "./hooks/useAutosave"
 import { useEngine } from "./hooks/useEngine"
 import { useGameAnalyzer } from "./hooks/useGameAnalyzer"
 import { useOpeningDetection } from "./hooks/useOpeningDetection"
+import { useAnalysisCache } from "./hooks/useAnalysisCache"
 import { useTouch } from "./hooks/useTouch"
 import { useSound } from "./hooks/useSound"
 import { useTheme } from "./hooks/useTheme"
@@ -37,6 +38,8 @@ import { usePuzzleStore } from "./stores/usePuzzleStore"
 import { usePuzzleProgressStore } from "./stores/usePuzzleProgressStore"
 import { useEditorStore } from "./stores/useEditorStore"
 import { useAiStore } from "./stores/useAiStore"
+import { useAiCacheStore } from "./stores/useAiCacheStore"
+import { useAnalysisCacheStore } from "./stores/useAnalysisCacheStore"
 import { newGame, saveNow, toggleCurrentFavorite } from "./lib/session"
 import type { Square } from "chess.js"
 
@@ -63,6 +66,7 @@ export default function App() {
   const configSetPlaySpeed = useConfigStore((s) => s.setPlaySpeed)
   const configSetLastSeenVersion = useConfigStore((s) => s.setLastSeenVersion)
   const openingAnalyzer = useConfigStore((s) => s.openingAnalyzer)
+  const aiCommentary = useConfigStore((s) => s.aiCommentary)
 
   const persistenceInit = usePersistenceStore((s) => s.init)
   const persistenceReady = usePersistenceStore((s) => s.ready)
@@ -94,6 +98,8 @@ export default function App() {
     configInit().catch(() => {})
     persistenceInit().catch(() => {})
     useAiStore.getState().init().catch(() => {})
+    useAiCacheStore.getState().init().catch(() => {})
+    useAnalysisCacheStore.getState().init().catch(() => {})
     // Silent check on launch — surfaces a dot on the version chip if newer.
     useUpdateStore.getState().check(true).catch(() => {})
   }, [])
@@ -155,6 +161,15 @@ export default function App() {
 
   useAutosave(restored && persistenceReady)
   useOpeningDetection(configLoaded && openingAnalyzer)
+  useAnalysisCache()
+
+  // AI commentary is a single switch: when on, set it up and start it
+  // automatically (no manual "start"); when off, stop the engine.
+  useEffect(() => {
+    if (!configLoaded) return
+    if (aiCommentary) useAiStore.getState().enable()
+    else useAiStore.getState().disable()
+  }, [configLoaded, aiCommentary])
 
   const closeOnboarding = () => {
     setOnboardingOpen(false)

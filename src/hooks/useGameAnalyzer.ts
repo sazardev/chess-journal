@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react"
 import { useGameStore } from "../stores/useGameStore"
 import { useAnalysisStore, posKey } from "../stores/useAnalysisStore"
+import { useAnalysisCacheStore, analysisCacheKey } from "../stores/useAnalysisCacheStore"
 import { useConfigStore } from "../stores/useConfigStore"
 import { toWhiteEval, MATE_BASE, type PlyEval } from "../lib/moveQuality"
 
@@ -151,7 +152,15 @@ export function useGameAnalyzer() {
       workerRef.current = null
     }
     setAnalyzing(false)
-    if (!cancelRef.current) useAnalysisStore.getState().setMark(true)
+    if (!cancelRef.current) {
+      useAnalysisStore.getState().setMark(true)
+      // Persist this analysis under (preset + start + moves) so reopening the
+      // game — or re-running Analyze with the same preset — is instant.
+      const g = useGameStore.getState()
+      const preset = useConfigStore.getState().engineConfig.preset
+      const key = analysisCacheKey(preset, g.startFen, g.fullHistory.map((m) => m.lan))
+      useAnalysisCacheStore.getState().put(key, useAnalysisStore.getState().byFen)
+    }
   }, [cancel])
 
   return { analyzing, done, total, run, cancel }

@@ -10,6 +10,8 @@ interface AnalysisState {
   setMark: (on: boolean) => void
   /** Store an eval for a position, keeping the deepest result seen. */
   record: (fen: string, e: PlyEval) => void
+  /** Replace the whole eval map (used when restoring a cached analysis). */
+  load: (byFen: Record<string, PlyEval>) => void
   clear: () => void
 }
 
@@ -32,6 +34,8 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
     if (existing && existing.depth >= e.depth) return
     set((s) => ({ byFen: { ...s.byFen, [key]: e } }))
   },
+
+  load: (byFen) => set({ byFen }),
 
   clear: () => set({ byFen: {} }),
 }))

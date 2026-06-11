@@ -1,64 +1,67 @@
+import { useState } from "react"
 import { useConfigStore } from "../stores/useConfigStore"
 import { useAiStore } from "../stores/useAiStore"
-import { findModel } from "../lib/ai/runtime"
+import { useAiCacheStore } from "../stores/useAiCacheStore"
+import { useAnalysisCacheStore } from "../stores/useAnalysisCacheStore"
 
 /**
- * AI-commentary settings (desktop Settings modal + mobile Settings page): the
- * device-capability verdict, the on/off toggle, the local-model download, and the
- * llama-server engine controls. The engine row appears once the model is
- * downloaded; starting it switches commentary to the local LLM.
+ * Minimalist AI-commentary control: a single On/Off switch (assets download +
+ * engine start happen automatically with a progress status), plus low-key cache
+ * and asset management. No model/engine specifics are shown to the user.
  */
 export default function AiSettings({ size = "sm" }: { size?: "sm" | "md" }) {
   const aiOn = useConfigStore((s) => s.aiCommentary)
   const setAiOn = useConfigStore((s) => s.setAiCommentary)
 
-  const capability = useAiStore((s) => s.capability)
-  const modelId = useAiStore((s) => s.modelId)
-  const modelState = useAiStore((s) => s.modelState)
+  const phase = useAiStore((s) => s.phase)
+  const step = useAiStore((s) => s.step)
   const progress = useAiStore((s) => s.progress)
   const error = useAiStore((s) => s.error)
-  const download = useAiStore((s) => s.download)
-  const remove = useAiStore((s) => s.remove)
+  const assetsPresent = useAiStore((s) => s.assetsPresent)
+  const removeAssets = useAiStore((s) => s.removeAssets)
 
-  const engineState = useAiStore((s) => s.engineState)
-  const engineProgress = useAiStore((s) => s.engineProgress)
-  const engineError = useAiStore((s) => s.engineError)
-  const installEngine = useAiStore((s) => s.installEngine)
-  const startEngine = useAiStore((s) => s.startEngine)
-  const stopEngine = useAiStore((s) => s.stopEngine)
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  const [cleared, setCleared] = useState(false)
 
-  const model = findModel(modelId)
-  const unsupported = capability.tier === "unsupported" || modelState === "unsupported"
-
+  const unsupported = phase === "unsupported"
   const labelText = size === "md" ? "text-[12px]" : "text-[11px]"
   const btn =
     size === "md"
       ? "font-mono text-[10px] uppercase tracking-[0.08em] px-4 py-2"
       : "font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1"
-  const ghostBtn = `${btn} text-gray-400 transition-colors hover:bg-gray-100 hover:text-black`
-  const sizeLabel = model ? `${(model.sizeMB / 1024).toFixed(1)} GB` : ""
+  const linkBtn =
+    "font-mono text-[8px] uppercase tracking-[0.08em] py-1 text-gray-400 transition-colors hover:text-black"
 
-  const modelNote =
-    modelState === "downloaded"
-      ? "Model ready."
-      : modelState === "downloading"
-        ? "Downloading the model…"
-        : modelState === "error"
-          ? error ?? "Download failed."
-          : `Downloads ~${sizeLabel} on demand; remove anytime to reclaim space.`
+  const status = unsupported
+    ? "This device can't run on-device AI."
+    : phase === "preparing"
+      ? step
+      : phase === "ready"
+        ? "AI ready — commentary is on."
+        : phase === "error"
+          ? (error ?? "Couldn't set up AI.")
+          : aiOn
+            ? "Starting AI…"
+            : "Written commentary, generated privately on your device. Downloads assets the first time."
 
-  const engineNote =
-    engineState === "ready"
-      ? "Engine running — AI commentary is active. Open the Game report."
-      : engineState === "starting"
-        ? "Starting the engine (loads the model)…"
-        : engineState === "installing"
-          ? "Downloading the llama.cpp runner…"
-          : engineState === "error"
-            ? engineError ?? "Engine error."
-            : engineState === "stopped"
-              ? "Start the engine to generate written commentary."
-              : "One-time download of the local llama.cpp runner."
+  const showBar = phase === "preparing" && step === "Downloading AI assets…"
+
+  const clearCache = () => {
+    useAiCacheStore.getState().clear()
+    useAnalysisCacheStore.getState().clear()
+    setCleared(true)
+    setTimeout(() => setCleared(false), 1500)
+  }
+
+  const onRemove = () => {
+    if (!confirmRemove) {
+      setConfirmRemove(true)
+      setTimeout(() => setConfirmRemove(false), 3000)
+      return
+    }
+    setConfirmRemove(false)
+    removeAssets()
+  }
 
   return (
     <>
@@ -75,72 +78,35 @@ export default function AiSettings({ size = "sm" }: { size?: "sm" | "md" }) {
         </button>
       </div>
 
-      <p className="px-4 pb-2 font-mono text-[8px] leading-snug text-gray-400">
-        Written commentary from a local model — runs entirely on your device. {capability.reason}
-      </p>
+      <div className="px-4 pb-1">
+        <p className="font-mono text-[8px] leading-snug text-gray-400">
+          {status}
+          {phase === "preparing" && progress > 0 && (
+            <span className="tabular-nums text-gray-500"> · {Math.round(progress * 100)}%</span>
+          )}
+        </p>
+        {showBar && (
+          <div className="mt-1.5 h-0.5 w-full bg-gray-100">
+            <div
+              className="h-full bg-black transition-all duration-150"
+              style={{ width: `${progress * 100}%` }}
+            />
+          </div>
+        )}
+      </div>
 
       {!unsupported && (
-        <div className="mx-4 mb-1 border border-gray-100 p-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate font-mono text-[10px] text-black">
-              {model?.label ?? "Model"}{" "}
-              <span className="text-gray-400">
-                · {model?.params} · {sizeLabel}
-              </span>
-            </span>
-            {modelState === "downloaded" ? (
-              <button onClick={remove} className={ghostBtn}>
-                Remove
-              </button>
-            ) : modelState === "downloading" ? (
-              <span className="font-mono text-[10px] tabular-nums text-black">{Math.round(progress * 100)}%</span>
-            ) : (
-              <button onClick={download} className={ghostBtn}>
-                {modelState === "error" ? "Retry" : "Download"}
-              </button>
-            )}
-          </div>
-          {modelState === "downloading" && <Bar value={progress} />}
-          <p className="mt-1 font-mono text-[8px] leading-snug text-gray-300">{modelNote}</p>
-        </div>
-      )}
-
-      {!unsupported && modelState === "downloaded" && (
-        <div className="mx-4 mb-1 border border-gray-100 p-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate font-mono text-[10px] text-black">
-              Engine <span className="text-gray-400">· llama.cpp</span>
-            </span>
-            {engineState === "absent" || engineState === "error" ? (
-              <button onClick={engineState === "error" ? startEngine : installEngine} className={ghostBtn}>
-                {engineState === "error" ? "Retry" : "Install"}
-              </button>
-            ) : engineState === "installing" ? (
-              <span className="font-mono text-[10px] tabular-nums text-black">{Math.round(engineProgress * 100)}%</span>
-            ) : engineState === "stopped" ? (
-              <button onClick={startEngine} className={ghostBtn}>
-                Start
-              </button>
-            ) : engineState === "starting" ? (
-              <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-gray-400">Starting…</span>
-            ) : (
-              <button onClick={stopEngine} className={ghostBtn}>
-                Stop
-              </button>
-            )}
-          </div>
-          {engineState === "installing" && <Bar value={engineProgress} />}
-          <p className="mt-1 font-mono text-[8px] leading-snug text-gray-300">{engineNote}</p>
+        <div className="flex items-center gap-4 px-4 pb-1">
+          <button onClick={clearCache} className={linkBtn}>
+            {cleared ? "Cache cleared" : "Clear cache"}
+          </button>
+          {assetsPresent && (
+            <button onClick={onRemove} className={`${linkBtn} hover:text-black`}>
+              {confirmRemove ? "Tap to confirm" : "Remove AI assets"}
+            </button>
+          )}
         </div>
       )}
     </>
-  )
-}
-
-function Bar({ value }: { value: number }) {
-  return (
-    <div className="mt-2 h-0.5 w-full bg-gray-100">
-      <div className="h-full bg-black transition-all duration-150" style={{ width: `${value * 100}%` }} />
-    </div>
   )
 }

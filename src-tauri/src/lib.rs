@@ -34,6 +34,7 @@ pub fn run() {
       ai::ai_model_exists,
       ai::ai_download,
       ai::ai_remove,
+      ai::ai_remove_all,
       ai::ai_server_installed,
       ai::ai_server_install,
       ai::ai_engine_running,

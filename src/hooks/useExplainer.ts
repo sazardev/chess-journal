@@ -11,9 +11,9 @@ import { getRuntime } from "../lib/ai/runtime"
  */
 export function useExplainer(): Explainer {
   const aiOn = useConfigStore((s) => s.aiCommentary)
-  const engineReady = useAiStore((s) => s.engineState === "ready")
+  const ready = useAiStore((s) => s.phase === "ready")
   return useMemo(
-    () => (aiOn && engineReady ? createLlmExplainer(getRuntime()) : templateExplainer),
-    [aiOn, engineReady],
+    () => (aiOn && ready ? createLlmExplainer(getRuntime()) : templateExplainer),
+    [aiOn, ready],
   )
 }

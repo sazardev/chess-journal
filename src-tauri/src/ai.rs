@@ -109,6 +109,19 @@ pub async fn ai_remove(app: AppHandle, file_name: String) -> Result<(), String> 
     Ok(())
 }
 
+/// Delete all on-disk AI assets (the model and the engine) to free space.
+#[tauri::command]
+pub async fn ai_remove_all(app: AppHandle) -> Result<(), String> {
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    for sub in ["models", "engine"] {
+        let dir = base.join(sub);
+        if dir.exists() {
+            std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
 /// Stream `url` into `<models>/<file_name>` (via a `.part` rename), emitting
 /// `ai-download-progress`.
 #[tauri::command]
@@ -160,11 +173,16 @@ pub async fn ai_server_installed(app: AppHandle) -> Result<bool, String> {
 /// into the engine dir. Emits `ai-engine-progress` during the download.
 #[tauri::command]
 pub async fn ai_server_install(app: AppHandle) -> Result<(), String> {
-    // Only Windows x64 auto-install is wired for now; other platforms can drop a
-    // llama-server build into the engine dir manually.
-    if !cfg!(target_os = "windows") {
-        return Err("Automatic engine install is currently Windows-only.".into());
-    }
+    // Pick the right prebuilt asset for this OS/arch (CPU builds; Metal on macOS).
+    let (os_tok, arch_tok) = match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("windows", "x86_64") => ("win", "x64"),
+        ("macos", "aarch64") => ("macos", "arm64"),
+        ("macos", "x86_64") => ("macos", "x64"),
+        ("linux", "x86_64") => ("ubuntu", "x64"),
+        _ => return Err("No prebuilt AI engine is available for this platform.".into()),
+    };
+    // Skip accelerator-specific builds we can't assume the user's hardware has.
+    const EXCLUDED: &[&str] = &["cuda", "vulkan", "hip", "sycl", "musa", "kompute", "cann"];
 
     let client = reqwest::Client::builder()
         .user_agent("chess-mini")
@@ -181,30 +199,38 @@ pub async fn ai_server_install(app: AppHandle) -> Result<(), String> {
 
     let assets = release["assets"]
         .as_array()
-        .ok_or("Unexpected GitHub response (no assets)")?;
+        .ok_or("Unexpected response while looking for the AI engine")?;
     let url = assets
         .iter()
         .find_map(|a| {
-            let name = a["name"].as_str()?;
-            let n = name.to_lowercase();
-            if n.contains("bin-win") && n.contains("x64") && n.contains("cpu") && n.ends_with(".zip") {
-                a["browser_download_url"].as_str()
-            } else {
-                None
-            }
+            let name = a["name"].as_str()?.to_lowercase();
+            let ok = name.contains(os_tok)
+                && name.contains(arch_tok)
+                && name.ends_with(".zip")
+                && !EXCLUDED.iter().any(|x| name.contains(x))
+                // Windows ships cpu/cuda/vulkan variants — take the plain CPU one.
+                && (os_tok != "win" || name.contains("cpu"));
+            if ok { a["browser_download_url"].as_str() } else { None }
         })
-        .ok_or("No matching llama-server build (win x64 cpu) in the latest release")?
+        .ok_or("No matching AI engine build in the latest release")?
         .to_string();
 
     let dir = engine_dir(&app)?;
-    let zip_path = dir.join("llama-server.zip");
+    let zip_path = dir.join("engine.zip");
     download_to(&app, &url, &zip_path, "ai-engine-progress").await?;
     extract_zip(&zip_path, &dir)?;
     std::fs::remove_file(&zip_path).ok();
 
-    if find_server_binary(&dir).is_none() {
-        return Err("Engine archive did not contain llama-server.".into());
+    let bin = find_server_binary(&dir).ok_or("Engine archive did not contain the server binary.")?;
+    // Extracted binaries aren't executable by default on Unix.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&bin).map_err(|e| e.to_string())?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&bin, perms).map_err(|e| e.to_string())?;
     }
+    let _ = &bin;
     Ok(())
 }
 

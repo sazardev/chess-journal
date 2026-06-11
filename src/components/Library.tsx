@@ -113,8 +113,9 @@ export default function Library({ open, onToggle }: Props) {
 
       setLoadedId(entryId)
       setTimeout(() => setLoadedId(null), 1200)
+      if (window.innerWidth < 1024) onToggle()
     },
-    [],
+    [onToggle],
   )
 
   const handleDelete = useCallback(
@@ -205,14 +206,15 @@ export default function Library({ open, onToggle }: Props) {
     useBoardStore.getState().clearAll()
     setLoadedId(g.id)
     setTimeout(() => setLoadedId(null), 1200)
-  }, [])
+    if (window.innerWidth < 1024) onToggle()
+  }, [onToggle])
 
   const handleStartPuzzle = useCallback(
     (queue: Puzzle[], index: number) => {
       usePuzzleStore.getState().load(queue, index)
-      if (open) onToggle() // close the drawer so the board takes the space
+      if (window.innerWidth < 1024) onToggle()
     },
-    [open, onToggle],
+    [onToggle],
   )
 
   const filtered = useMemo(() => {

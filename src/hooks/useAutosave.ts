@@ -12,6 +12,7 @@ const DEBOUNCE_MS = 600
 // indicator. Navigation (historyIndex) is persisted quietly without a flash.
 function gameContentSig(s: GameState): string {
   return [
+    s.startFen,
     s.fullHistory.length,
     JSON.stringify(s.bookmarks),
     JSON.stringify(s.comments),

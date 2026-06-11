@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState } from "react"
 import TitleBar from "./components/TitleBar"
 import Board from "./components/Board"
+import BoardEditor from "./components/BoardEditor"
+import EditorPanel from "./components/EditorPanel"
 import MoveHistory from "./components/MoveHistory"
 import ControlBar from "./components/ControlBar"
 import MoveInput from "./components/MoveInput"
@@ -29,6 +31,7 @@ import { useConfigStore } from "./stores/useConfigStore"
 import { usePersistenceStore } from "./stores/usePersistenceStore"
 import { usePuzzleStore } from "./stores/usePuzzleStore"
 import { usePuzzleProgressStore } from "./stores/usePuzzleProgressStore"
+import { useEditorStore } from "./stores/useEditorStore"
 import { newGame, saveNow, toggleCurrentFavorite } from "./lib/session"
 import type { Square } from "chess.js"
 
@@ -63,6 +66,7 @@ export default function App() {
   const loadLibrary = useLibraryStore((s) => s.loadFromStorage)
   const loadPuzzleProgress = usePuzzleProgressStore((s) => s.load)
   const puzzleActive = usePuzzleStore((s) => s.active)
+  const editorActive = useEditorStore((s) => s.active)
 
   const engine = useEngine()
   const analyzer = useGameAnalyzer()
@@ -188,6 +192,7 @@ export default function App() {
         if (shortcutsOpen) return setShortcutsOpen(false)
         if (mobileSettingsOpen) return setMobileSettingsOpen(false)
         if (libraryOpen) return setLibraryOpen(false)
+        if (useEditorStore.getState().active) return useEditorStore.getState().exit()
         if (puzzleActive) return usePuzzleStore.getState().exit()
         useBoardStore.setState({ selectedSquare: null })
       },
@@ -235,14 +240,16 @@ export default function App() {
           {/* Board (swipe left/right to step through moves on touch) */}
           <div
             className="flex h-[52vh] h-[52dvh] shrink-0 items-center justify-center p-2 md:h-auto md:min-h-0 md:flex-[2] md:p-4"
-            {...(touch && !puzzleActive ? boardSwipe : {})}
+            {...(touch && !puzzleActive && !editorActive ? boardSwipe : {})}
           >
-            <Board engine={engine} />
+            {editorActive ? <BoardEditor /> : <Board engine={engine} />}
           </div>
 
-          {/* Desktop side panel — replaced by the puzzle panel while solving */}
+          {/* Desktop side panel — swapped out for the editor / puzzle panels */}
           <div className="hidden min-h-0 shrink-0 flex-col border-l border-gray-100 md:flex md:w-56 lg:w-64">
-            {puzzleActive ? (
+            {editorActive ? (
+              <EditorPanel />
+            ) : puzzleActive ? (
               <PuzzlePanel />
             ) : (
               <>
@@ -256,9 +263,11 @@ export default function App() {
             )}
           </div>
 
-          {/* Mobile panel — switched by the bottom nav (puzzle takes over while solving) */}
+          {/* Mobile panel — switched by the bottom nav (editor / puzzle take over) */}
           <div className="flex min-h-0 flex-1 flex-col border-t border-gray-100 md:hidden">
-            {puzzleActive ? (
+            {editorActive ? (
+              <EditorPanel />
+            ) : puzzleActive ? (
               <PuzzlePanel />
             ) : panelTab === "moves" ? (
               <div className="min-h-0 flex-1 overflow-hidden">
@@ -285,8 +294,8 @@ export default function App() {
         )}
 
         {/* Move input — hidden on mobile while a full-screen overlay is open, and
-            entirely while solving a puzzle (puzzle moves go through the board) */}
-        {!puzzleActive && (
+            entirely while solving a puzzle or editing a position (no move list there) */}
+        {!puzzleActive && !editorActive && (
           <div className={overlayOpenMobile ? "hidden md:block" : ""}>
             <MoveInput inputRef={moveInputRef} engine={engine} />
           </div>

@@ -6,7 +6,7 @@ import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
 import { useConfigStore, ENGINE_PRESETS, type EnginePresetId } from "../stores/useConfigStore"
-import { buildSaveData } from "../lib/session"
+import { buildSaveData, openEditor } from "../lib/session"
 import { candidateColor } from "../lib/heatmap"
 import { saveTextFile, fileStem } from "../lib/exporters"
 import type { useEngine } from "../hooks/useEngine"
@@ -222,6 +222,13 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
         }`}
       >
         {engineLoading ? "Loading..." : engineOn ? "Analyze On" : "Analyze Off"}
+      </button>
+
+      <button
+        onClick={openEditor}
+        className="font-mono text-[10px] md:text-[9px] uppercase tracking-[0.15em] py-2 md:py-1.5 transition-colors text-gray-400 hover:text-black hover:bg-gray-100"
+      >
+        Edit position
       </button>
 
       {engineOn && (

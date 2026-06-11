@@ -1,6 +1,6 @@
 [package]
 name = "chess-mini"
-version = "0.1.10"
+version = "0.1.11"
 description = "Minimalist chess analyzer & game journal"
 authors = ["sazardev"]
 license = "MIT"

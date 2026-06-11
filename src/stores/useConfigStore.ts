@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { load } from "@tauri-apps/plugin-store"
 import { setSoundEnabled } from "../lib/sound"
+import { applyTheme, type ThemeMode } from "../lib/theme"
 
 export type Orientation = "white" | "black"
 export type EnginePresetId = "eco" | "fast" | "balanced" | "deep" | "max"
@@ -45,6 +46,7 @@ interface ConfigState extends AppConfig {
   lastSeenVersion: string
   openingAnalyzer: boolean
   sound: boolean
+  theme: ThemeMode
   engineConfig: EngineConfig
   init: () => Promise<void>
   setOrientation: (orientation: Orientation) => void
@@ -52,6 +54,7 @@ interface ConfigState extends AppConfig {
   setLastSeenVersion: (v: string) => void
   setOpeningAnalyzer: (on: boolean) => void
   setSound: (on: boolean) => void
+  setTheme: (mode: ThemeMode) => void
   setEnginePreset: (preset: EnginePresetId) => void
 }
 
@@ -72,6 +75,7 @@ export const useConfigStore = create<ConfigState>((set) => {
     lastSeenVersion: "",
     openingAnalyzer: true,
     sound: true,
+    theme: "system",
     engineConfig: resolveEngineConfig("balanced"),
 
     init: async () => {
@@ -81,10 +85,12 @@ export const useConfigStore = create<ConfigState>((set) => {
       const lastSeenVersion = (await st.get<string>("lastSeenVersion")) ?? ""
       const openingAnalyzer = (await st.get<boolean>("openingAnalyzer")) ?? true
       const sound = (await st.get<boolean>("sound")) ?? true
+      const theme = (await st.get<ThemeMode>("theme")) ?? "system"
       const enginePreset = (await st.get<EnginePresetId>("enginePreset")) ?? "balanced"
       const engineConfig = resolveEngineConfig(enginePreset)
       setSoundEnabled(sound)
-      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, sound, engineConfig, loaded: true })
+      applyTheme(theme)
+      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, sound, theme, engineConfig, loaded: true })
     },
 
     setOrientation: async (orientation) => {
@@ -116,6 +122,13 @@ export const useConfigStore = create<ConfigState>((set) => {
       set({ sound })
       const st = await ensureStore()
       await st.set("sound", sound)
+    },
+
+    setTheme: async (theme) => {
+      applyTheme(theme)
+      set({ theme })
+      const st = await ensureStore()
+      await st.set("theme", theme)
     },
 
     setEnginePreset: async (preset) => {

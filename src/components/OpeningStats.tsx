@@ -13,7 +13,7 @@ export default function OpeningStats({ onSelect, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[#00000033] p-4"
       onClick={onClose}
     >
       <div

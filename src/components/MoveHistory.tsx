@@ -1,8 +1,30 @@
 import { useRef, useEffect, useState, useMemo } from "react"
 import { useGameStore } from "../stores/useGameStore"
 import { useAnalysisStore, posKey } from "../stores/useAnalysisStore"
+import { useOpeningStore } from "../stores/useOpeningStore"
 import { classifyMove, nagColor, type Nag } from "../lib/moveQuality"
+import { detectMotifs, type Motif } from "../lib/motifs"
+import { explainMove, type MoveExplanation, type ExplainTone } from "../lib/explain"
+import { uciToSan } from "../lib/uci"
 import OpeningChip from "./OpeningChip"
+
+/** Display colour for an explanation tone, coherent with the NAG heatmap. */
+function toneColor(tone: ExplainTone): string {
+  switch (tone) {
+    case "blunder":
+      return "#dc2626" // red-600
+    case "mistake":
+      return "#ea580c" // orange-600
+    case "inaccuracy":
+      return "#a3a3a3" // neutral-400
+    case "good":
+      return "#16a34a" // green-600
+    case "book":
+      return "#9ca3af" // gray-400
+    default:
+      return "#6b7280" // gray-500
+  }
+}
 
 export default function MoveHistory() {
   const history = useGameStore((s) => s.fullHistory)
@@ -23,6 +45,7 @@ export default function MoveHistory() {
 
   const markMode = useAnalysisStore((s) => s.markMode)
   const byFen = useAnalysisStore((s) => s.byFen)
+  const lastBookPly = useOpeningStore((s) => s.current?.lastBookPly ?? 0)
 
   const [editingComment, setEditingComment] = useState<number | null>(null)
   const [commentValue, setCommentValue] = useState("")
@@ -35,21 +58,52 @@ export default function MoveHistory() {
     const out: Record<number, Nag> = {}
     if (!markMode) return out
     for (let i = 0; i < history.length; i++) {
-      const mv = history[i] as (typeof history)[number] & {
-        before?: string
-        after?: string
-        lan?: string
-      }
-      if (!mv.before || !mv.after) continue
+      const mv = history[i]
       const before = byFen[posKey(mv.before)]
       const after = byFen[posKey(mv.after)]
       if (!before || !after) continue
-      const uci = mv.lan ?? `${mv.from}${mv.to}${(mv as { promotion?: string }).promotion ?? ""}`
-      const nag = classifyMove(i % 2 === 0, before, after, uci)
+      const nag = classifyMove(mv.color === "w", before, after, mv.lan)
       if (nag) out[i] = nag
     }
     return out
   }, [markMode, history, byFen])
+
+  // Motifs depend only on the moves, so compute them once — not on every eval
+  // update that streams in during a scan.
+  const motifsByPly = useMemo(() => {
+    const out: Record<number, Motif[]> = {}
+    if (!markMode) return out
+    for (let i = 0; i < history.length; i++) {
+      out[i] = detectMotifs(history[i], history[i - 1])
+    }
+    return out
+  }, [markMode, history])
+
+  // One-line plain-language explanation per move (engine facts → prose).
+  const explanations = useMemo(() => {
+    const out: Record<number, MoveExplanation> = {}
+    if (!markMode) return out
+    for (let i = 0; i < history.length; i++) {
+      const mv = history[i]
+      const before = byFen[posKey(mv.before)]
+      const after = byFen[posKey(mv.after)]
+      if (!before && !after) continue
+      const moverIsWhite = mv.color === "w"
+      const nag = before && after ? classifyMove(moverIsWhite, before, after, mv.lan) : null
+      const bestSan = before?.bestUci ? uciToSan(mv.before, before.bestUci) : null
+      const exp = explainMove({
+        moverIsWhite,
+        before,
+        after,
+        nag,
+        motifs: motifsByPly[i] ?? [],
+        bestSan,
+        isBookMove: i < lastBookPly,
+      })
+      if (exp) out[i] = exp
+    }
+    return out
+  }, [markMode, history, byFen, motifsByPly, lastBookPly])
 
   // Keep the current move in view — works for long games and during playback.
   useEffect(() => {
@@ -76,6 +130,7 @@ export default function MoveHistory() {
   }
 
   const atEnd = historyIndex >= history.length
+  const activePly = historyIndex - 1
 
   return (
     <div className="flex flex-col max-h-40 md:h-full md:max-h-none">
@@ -194,6 +249,7 @@ export default function MoveHistory() {
                 <button
                   ref={historyIndex === whiteIdx + 1 ? activeRef : undefined}
                   onClick={() => goToMove(whiteIdx + 1)}
+                  title={explanations[whiteIdx]?.text}
                   onContextMenu={(e) => {
                     e.preventDefault()
                     handleStartComment(whiteIdx)
@@ -236,6 +292,7 @@ export default function MoveHistory() {
                     <button
                       ref={historyIndex === blackIdx + 1 ? activeRef : undefined}
                       onClick={() => goToMove(blackIdx + 1)}
+                      title={explanations[blackIdx]?.text}
                       onContextMenu={(e) => {
                         e.preventDefault()
                         handleStartComment(blackIdx)
@@ -266,6 +323,17 @@ export default function MoveHistory() {
                   </span>
                 )}
               </div>
+
+              {explanations[activePly] && (activePly === whiteIdx || activePly === blackIdx) && (
+                <div className="pl-7 md:pl-8 pr-3 pb-1">
+                  <span
+                    className="block font-mono text-[9px] leading-snug"
+                    style={{ color: toneColor(explanations[activePly].tone) }}
+                  >
+                    {explanations[activePly].text}
+                  </span>
+                </div>
+              )}
 
               {editingComment === whiteIdx && (
                 <div className="flex items-center gap-1 pl-7 md:pl-8 pr-3 py-1">

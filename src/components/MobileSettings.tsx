@@ -3,6 +3,7 @@ import { useUpdateStore } from "../stores/useUpdateStore"
 import { useConfigStore } from "../stores/useConfigStore"
 import { usePlatform } from "../hooks/usePlatform"
 import DataActions from "./DataActions"
+import ThemeToggle from "./ThemeToggle"
 import ShortcutsList from "./ShortcutsList"
 import Changelog from "./Changelog"
 
@@ -42,15 +43,15 @@ export default function MobileSettings({ onErased }: { onErased?: () => void }) 
       {/* Brand + version */}
       <div className="flex items-center gap-3 px-4 pt-5">
         <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden>
-          <rect width="32" height="32" rx="6.5" fill="#000" />
-          <g fill="#fff">
+          <rect width="32" height="32" rx="6.5" fill="var(--c-black)" />
+          <g fill="var(--c-white)">
             <circle cx="16" cy="7.25" r="1.06" />
             <path d="M16 8.4 C 19.1 10, 20.25 13.5, 17.9 16 L 14.1 16 C 11.75 13.5, 12.9 10, 16 8.4 Z" />
             <rect x="13.95" y="15.8" width="4.1" height="1.45" rx="0.45" />
             <path d="M14.7 17.25 C 12.75 19.75, 11.6 22.6, 11.25 24.75 L 20.75 24.75 C 20.4 22.6, 19.25 19.75, 17.3 17.25 Z" />
             <rect x="10" y="24.7" width="12" height="1.8" rx="0.9" />
           </g>
-          <path d="M16.25 9.4 L 18.4 11.6" stroke="#000" strokeWidth="0.8" strokeLinecap="round" />
+          <path d="M16.25 9.4 L 18.4 11.6" stroke="var(--c-black)" strokeWidth="0.8" strokeLinecap="round" />
         </svg>
         <div className="flex items-baseline gap-2">
           <span className="font-mono text-[12px] uppercase tracking-[0.15em] text-black">Chess Mini</span>
@@ -70,6 +71,10 @@ export default function MobileSettings({ onErased }: { onErased?: () => void }) 
         >
           {sound ? "On" : "Off"}
         </button>
+      </div>
+      <div className="flex items-center justify-between px-4 py-1">
+        <span className="font-mono text-[12px] text-black">Theme</span>
+        <ThemeToggle size="md" />
       </div>
 
       {/* Update */}

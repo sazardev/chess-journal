@@ -17,7 +17,21 @@
     <meta name="keywords" content="chess, analyzer, stockfish, openings, ECO, PGN, game journal, chess engine, Carlsen, classics" />
     <meta name="application-name" content="Chess Mini" />
     <meta name="theme-color" content="#ffffff" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- Apply the persisted theme before paint to avoid a flash of the wrong theme. -->
+    <script>
+      (function () {
+        try {
+          var m = localStorage.getItem("chess-mini-theme") || "system";
+          var dark =
+            m === "dark" ||
+            (m === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
 
     <!-- Mobile web app -->
     <meta name="mobile-web-app-capable" content="yes" />

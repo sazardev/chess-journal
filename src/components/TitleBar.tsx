@@ -117,7 +117,7 @@ export default function TitleBar({
             {maximized ? (
               <svg width="10" height="10" viewBox="0 0 10 10">
                 <rect x="2" y="0" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="1" />
-                <rect x="0" y="2" width="8" height="8" fill="#fff" stroke="currentColor" strokeWidth="1" />
+                <rect x="0" y="2" width="8" height="8" fill="var(--c-white)" stroke="currentColor" strokeWidth="1" />
               </svg>
             ) : (
               <svg width="10" height="10" viewBox="0 0 10 10">
@@ -244,7 +244,7 @@ export default function TitleBar({
           {maximized ? (
             <svg width="10" height="10" viewBox="0 0 10 10">
               <rect x="2" y="0" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="1" />
-              <rect x="0" y="2" width="8" height="8" fill="#fff" stroke="currentColor" strokeWidth="1" />
+              <rect x="0" y="2" width="8" height="8" fill="var(--c-white)" stroke="currentColor" strokeWidth="1" />
             </svg>
           ) : (
             <svg width="10" height="10" viewBox="0 0 10 10">

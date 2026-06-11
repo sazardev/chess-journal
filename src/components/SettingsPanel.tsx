@@ -1,4 +1,5 @@
 import DataActions from "./DataActions"
+import ThemeToggle from "./ThemeToggle"
 import { useConfigStore } from "../stores/useConfigStore"
 
 export default function SettingsPanel({ onClose }: { onClose: () => void }) {
@@ -7,7 +8,7 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[#00000033] p-4"
       onClick={onClose}
     >
       <div
@@ -40,6 +41,10 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
           >
             {sound ? "On" : "Off"}
           </button>
+        </div>
+        <div className="flex items-center justify-between px-4 pb-1">
+          <span className="font-mono text-[11px] text-black">Theme</span>
+          <ThemeToggle size="sm" />
         </div>
 
         <p className="px-4 pt-4 pb-2 font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400">

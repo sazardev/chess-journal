@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import { toPng } from "html-to-image"
-import { Chess, type Square } from "chess.js"
+import { type Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
@@ -8,32 +8,19 @@ import { useAnalysisStore } from "../stores/useAnalysisStore"
 import { useConfigStore, ENGINE_PRESETS, type EnginePresetId } from "../stores/useConfigStore"
 import { buildSaveData, openEditor } from "../lib/session"
 import { candidateColor } from "../lib/heatmap"
+import { uciToSan, uciToSanList } from "../lib/uci"
 import { saveTextFile, fileStem } from "../lib/exporters"
 import type { useEngine } from "../hooks/useEngine"
 import type { useGameAnalyzer } from "../hooks/useGameAnalyzer"
 import MetaEditor from "./MetaEditor"
 
-function uciToSanList(fen: string, uciMoves: string[]): string[] {
-  const g = new Chess(fen)
-  return uciMoves.map((uci) => {
-    const from = uci.slice(0, 2) as Square
-    const to = uci.slice(2, 4) as Square
-    const promotion = uci.length > 4 ? uci[4] : undefined
-    try {
-      const move = g.move({ from, to, promotion })
-      return move ? move.san : uci
-    } catch {
-      return uci
-    }
-  })
-}
-
 interface ControlBarProps {
   engine: ReturnType<typeof useEngine>
   analyzer: ReturnType<typeof useGameAnalyzer>
+  onOpenReport: () => void
 }
 
-export default function ControlBar({ engine, analyzer }: ControlBarProps) {
+export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBarProps) {
   const {
     eval_,
     enabled: engineOn,
@@ -83,22 +70,7 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
   )
 
   const sanCandidates = useMemo(
-    () =>
-      candidates.map((c) => ({
-        ...c,
-        san: (() => {
-          try {
-            const g = new Chess(fen)
-            const from = c.uci.slice(0, 2) as Square
-            const to = c.uci.slice(2, 4) as Square
-            const prom = c.uci.length > 4 ? c.uci[4] : undefined
-            const m = g.move({ from, to, promotion: prom })
-            return m ? m.san : c.uci
-          } catch {
-            return c.uci
-          }
-        })(),
-      })),
+    () => candidates.map((c) => ({ ...c, san: uciToSan(fen, c.uci) })),
     [fen, candidates],
   )
 
@@ -321,6 +293,12 @@ export default function ControlBar({ engine, analyzer }: ControlBarProps) {
               Marks fill in as the engine sees each position — run “Analyze game” to mark the whole game.
             </p>
           )}
+          <button
+            onClick={onOpenReport}
+            className="font-mono text-[10px] md:text-[9px] uppercase tracking-[0.15em] py-2 md:py-1.5 transition-colors text-gray-400 hover:text-black hover:bg-gray-100"
+          >
+            Game report
+          </button>
         </div>
       )}
 

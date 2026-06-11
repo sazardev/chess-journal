@@ -5,6 +5,7 @@ import BoardEditor from "./components/BoardEditor"
 import EditorPanel from "./components/EditorPanel"
 import MoveHistory from "./components/MoveHistory"
 import ControlBar from "./components/ControlBar"
+import GameReport from "./components/GameReport"
 import MoveInput from "./components/MoveInput"
 import Library from "./components/Library"
 import SettingsPanel from "./components/SettingsPanel"
@@ -22,6 +23,7 @@ import { useGameAnalyzer } from "./hooks/useGameAnalyzer"
 import { useOpeningDetection } from "./hooks/useOpeningDetection"
 import { useTouch } from "./hooks/useTouch"
 import { useSound } from "./hooks/useSound"
+import { useTheme } from "./hooks/useTheme"
 import { useSwipe } from "./hooks/useSwipe"
 import { useKeyboardOpen } from "./hooks/useKeyboardOpen"
 import { usePlatform } from "./hooks/usePlatform"
@@ -77,6 +79,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [panelTab, setPanelTab] = useState<"moves" | "analysis">("moves")
   // Mobile-only full-screen Settings page (bottom nav). Desktop uses modals.
@@ -190,6 +193,7 @@ export default function App() {
       "Escape": () => {
         if (onboardingOpen) return closeOnboarding()
         if (aboutOpen) return setAboutOpen(false)
+        if (reportOpen) return setReportOpen(false)
         if (settingsOpen) return setSettingsOpen(false)
         if (shortcutsOpen) return setShortcutsOpen(false)
         if (mobileSettingsOpen) return setMobileSettingsOpen(false)
@@ -204,6 +208,7 @@ export default function App() {
 
   useAutoplay()
   useSound()
+  useTheme()
 
   const touch = useTouch()
   const boardSwipe = useSwipe(goForward, goBack)
@@ -275,7 +280,7 @@ export default function App() {
 
         {libraryOpen && (
           <div
-            className={`fixed inset-x-0 bottom-0 ${backdropTop} z-30 bg-black/20 lg:hidden`}
+            className={`fixed inset-x-0 bottom-0 ${backdropTop} z-30 bg-[#00000033] lg:hidden`}
             onClick={() => setLibraryOpen(false)}
           />
         )}
@@ -302,7 +307,7 @@ export default function App() {
                   <MoveHistory />
                 </div>
                 <div className="shrink-0 border-t border-gray-100">
-                  <ControlBar engine={engine} analyzer={analyzer} />
+                  <ControlBar engine={engine} analyzer={analyzer} onOpenReport={() => setReportOpen(true)} />
                 </div>
               </>
             )}
@@ -320,7 +325,7 @@ export default function App() {
               </div>
             ) : (
               <div className="min-h-0 flex-1 overflow-y-auto">
-                <ControlBar engine={engine} analyzer={analyzer} />
+                <ControlBar engine={engine} analyzer={analyzer} onOpenReport={() => setReportOpen(true)} />
               </div>
             )}
           </div>
@@ -397,6 +402,7 @@ export default function App() {
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       {shortcutsOpen && <ShortcutsOverlay onClose={() => setShortcutsOpen(false)} />}
       {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+      {reportOpen && <GameReport onClose={() => setReportOpen(false)} />}
       {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
     </div>
   )

@@ -1,8 +1,74 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: `.dark` on <html> flips the theme (vs prefers-color-scheme). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "General Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/*
+ * Monochrome palette via theme-variable indirection. The whole app is built from
+ * white / black / gray-*; mapping those theme colors to runtime CSS variables
+ * (with `inline`, so utilities emit `var(--c-*)`) lets a single `.dark` block
+ * re-theme everything — no per-component `dark:` classes.
+ */
+@theme inline {
+  --color-white: var(--c-white);
+  --color-black: var(--c-black);
+  --color-gray-50: var(--c-gray-50);
+  --color-gray-100: var(--c-gray-100);
+  --color-gray-200: var(--c-gray-200);
+  --color-gray-300: var(--c-gray-300);
+  --color-gray-400: var(--c-gray-400);
+  --color-gray-500: var(--c-gray-500);
+  --color-gray-600: var(--c-gray-600);
+  --color-gray-700: var(--c-gray-700);
+  --color-gray-800: var(--c-gray-800);
+  --color-gray-900: var(--c-gray-900);
+}
+
+:root {
+  color-scheme: light;
+  /* Light — the original monochrome look. */
+  --c-white: #ffffff;
+  --c-black: #000000;
+  --c-gray-50: #f9fafb;
+  --c-gray-100: #f3f4f6;
+  --c-gray-200: #e5e7eb;
+  --c-gray-300: #d1d5db;
+  --c-gray-400: #9ca3af;
+  --c-gray-500: #6b7280;
+  --c-gray-600: #4b5563;
+  --c-gray-700: #374151;
+  --c-gray-800: #1f2937;
+  --c-gray-900: #111827;
+  /* Scrollbar thumb. */
+  --c-scroll: #d4d4d4;
+}
+
+.dark {
+  color-scheme: dark;
+  /*
+   * Dark — the neutral ramp with its lightness reversed and hand-tuned so the
+   * roles hold: "white" surfaces go near-black, "black" text/inverted buttons go
+   * near-white, light-surface grays become dark surfaces, and the muted text
+   * gray (gray-400, by far the most used) stays mid so it reads on dark.
+   */
+  --c-white: #0c0c0d;
+  --c-black: #f4f4f5;
+  --c-gray-50: #161617;
+  --c-gray-100: #1f1f21;
+  --c-gray-200: #2a2a2d;
+  --c-gray-300: #3c3c41;
+  --c-gray-400: #8a8a92;
+  --c-gray-500: #a1a1aa;
+  --c-gray-600: #c2c2c9;
+  --c-gray-700: #d6d6db;
+  --c-gray-800: #e6e6e9;
+  --c-gray-900: #f0f0f2;
+  --c-scroll: #3a3a3d;
 }
 
 @layer base {
@@ -21,8 +87,8 @@
 
   body {
     font-family: var(--font-sans);
-    background: #fff;
-    color: #000;
+    background: var(--c-white);
+    color: var(--c-black);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     user-select: none;
@@ -40,7 +106,7 @@
   /* Thin, restrained scrollbars matching the monochrome shell. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #d4d4d4 transparent;
+    scrollbar-color: var(--c-scroll) transparent;
   }
 
   *::-webkit-scrollbar {
@@ -49,7 +115,7 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    background: #d4d4d4;
+    background: var(--c-scroll);
     border-radius: 3px;
   }
 

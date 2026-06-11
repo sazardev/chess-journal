@@ -21,6 +21,7 @@ import { useEngine } from "./hooks/useEngine"
 import { useGameAnalyzer } from "./hooks/useGameAnalyzer"
 import { useOpeningDetection } from "./hooks/useOpeningDetection"
 import { useTouch } from "./hooks/useTouch"
+import { useSound } from "./hooks/useSound"
 import { useSwipe } from "./hooks/useSwipe"
 import { useKeyboardOpen } from "./hooks/useKeyboardOpen"
 import { usePlatform } from "./hooks/usePlatform"
@@ -202,6 +203,7 @@ export default function App() {
   )
 
   useAutoplay()
+  useSound()
 
   const touch = useTouch()
   const boardSwipe = useSwipe(goForward, goBack)

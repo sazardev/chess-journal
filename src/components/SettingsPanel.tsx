@@ -1,6 +1,10 @@
 import DataActions from "./DataActions"
+import { useConfigStore } from "../stores/useConfigStore"
 
 export default function SettingsPanel({ onClose }: { onClose: () => void }) {
+  const sound = useConfigStore((s) => s.sound)
+  const setSound = useConfigStore((s) => s.setSound)
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 p-4"
@@ -12,7 +16,7 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
           <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-gray-400">
-            Data
+            Settings
           </span>
           <button
             onClick={onClose}
@@ -23,6 +27,24 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
+        <p className="px-4 pt-4 pb-2 font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400">
+          Preferences
+        </p>
+        <div className="flex items-center justify-between px-4 pb-1">
+          <span className="font-mono text-[11px] text-black">Sound effects</span>
+          <button
+            onClick={() => setSound(!sound)}
+            className={`font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1 transition-colors ${
+              sound ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
+            }`}
+          >
+            {sound ? "On" : "Off"}
+          </button>
+        </div>
+
+        <p className="px-4 pt-4 pb-2 font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400">
+          Data
+        </p>
         <div className="px-4 py-1">
           <DataActions onErased={onClose} />
         </div>

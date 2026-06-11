@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { useUpdateStore } from "../stores/useUpdateStore"
+import { useConfigStore } from "../stores/useConfigStore"
 import { usePlatform } from "../hooks/usePlatform"
 import DataActions from "./DataActions"
 import ShortcutsList from "./ShortcutsList"
@@ -18,6 +19,8 @@ export default function MobileSettings({ onErased }: { onErased?: () => void }) 
   const error = useUpdateStore((s) => s.error)
   const check = useUpdateStore((s) => s.check)
   const install = useUpdateStore((s) => s.install)
+  const sound = useConfigStore((s) => s.sound)
+  const setSound = useConfigStore((s) => s.setSound)
 
   useEffect(() => {
     if (status === "idle" || status === "uptodate" || status === "error") check()
@@ -53,6 +56,20 @@ export default function MobileSettings({ onErased }: { onErased?: () => void }) 
           <span className="font-mono text-[12px] uppercase tracking-[0.15em] text-black">Chess Mini</span>
           <span className="font-mono text-[11px] tabular-nums text-gray-400">v{__APP_VERSION__}</span>
         </div>
+      </div>
+
+      {/* Preferences */}
+      {section("Preferences")}
+      <div className="flex items-center justify-between px-4 py-1">
+        <span className="font-mono text-[12px] text-black">Sound effects</span>
+        <button
+          onClick={() => setSound(!sound)}
+          className={`font-mono text-[10px] uppercase tracking-[0.08em] px-4 py-2 transition-colors ${
+            sound ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
+          }`}
+        >
+          {sound ? "On" : "Off"}
+        </button>
       </div>
 
       {/* Update */}

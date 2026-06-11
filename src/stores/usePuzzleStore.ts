@@ -2,6 +2,7 @@ import { create } from "zustand"
 import { Chess, type Square } from "chess.js"
 import type { Puzzle } from "../data/puzzles"
 import { usePuzzleProgressStore } from "./usePuzzleProgressStore"
+import { soundForMove, playWrong } from "../lib/sound"
 
 type PuzzleStatus = "playing" | "solved"
 type Feedback = "none" | "right" | "wrong"
@@ -131,11 +132,13 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => {
       if (!correct) {
         set({ mistakes: mistakes + 1 })
         flashWrong(to)
+        playWrong()
         return false
       }
 
       // Commit the player's move.
-      game.move({ from, to, promotion: usePromo })
+      const playerMove = game.move({ from, to, promotion: usePromo })
+      soundForMove(playerMove)
       const nextIndex = solutionIndex + 1
       set({ fen: game.fen(), solutionIndex: nextIndex, feedback: "right", feedbackSquare: to })
 
@@ -160,7 +163,8 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => {
         const rTo = reply.slice(2, 4) as Square
         const rPromo = reply.length > 4 ? reply[4] : undefined
         try {
-          game.move({ from: rFrom, to: rTo, promotion: rPromo })
+          const replyMove = game.move({ from: rFrom, to: rTo, promotion: rPromo })
+          soundForMove(replyMove)
         } catch {
           /* scripted reply should always be legal */
         }

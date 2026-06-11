@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { load } from "@tauri-apps/plugin-store"
+import { setSoundEnabled } from "../lib/sound"
 
 export type Orientation = "white" | "black"
 export type EnginePresetId = "eco" | "fast" | "balanced" | "deep" | "max"
@@ -43,12 +44,14 @@ interface ConfigState extends AppConfig {
   loaded: boolean
   lastSeenVersion: string
   openingAnalyzer: boolean
+  sound: boolean
   engineConfig: EngineConfig
   init: () => Promise<void>
   setOrientation: (orientation: Orientation) => void
   setPlaySpeed: (ms: number) => void
   setLastSeenVersion: (v: string) => void
   setOpeningAnalyzer: (on: boolean) => void
+  setSound: (on: boolean) => void
   setEnginePreset: (preset: EnginePresetId) => void
 }
 
@@ -68,6 +71,7 @@ export const useConfigStore = create<ConfigState>((set) => {
     loaded: false,
     lastSeenVersion: "",
     openingAnalyzer: true,
+    sound: true,
     engineConfig: resolveEngineConfig("balanced"),
 
     init: async () => {
@@ -76,9 +80,11 @@ export const useConfigStore = create<ConfigState>((set) => {
       const playSpeed = (await st.get<number>("playSpeed")) ?? 500
       const lastSeenVersion = (await st.get<string>("lastSeenVersion")) ?? ""
       const openingAnalyzer = (await st.get<boolean>("openingAnalyzer")) ?? true
+      const sound = (await st.get<boolean>("sound")) ?? true
       const enginePreset = (await st.get<EnginePresetId>("enginePreset")) ?? "balanced"
       const engineConfig = resolveEngineConfig(enginePreset)
-      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, engineConfig, loaded: true })
+      setSoundEnabled(sound)
+      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, sound, engineConfig, loaded: true })
     },
 
     setOrientation: async (orientation) => {
@@ -103,6 +109,13 @@ export const useConfigStore = create<ConfigState>((set) => {
       set({ openingAnalyzer })
       const st = await ensureStore()
       await st.set("openingAnalyzer", openingAnalyzer)
+    },
+
+    setSound: async (sound) => {
+      setSoundEnabled(sound)
+      set({ sound })
+      const st = await ensureStore()
+      await st.set("sound", sound)
     },
 
     setEnginePreset: async (preset) => {

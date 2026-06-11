@@ -1,11 +1,12 @@
 import type { SaveData, GameResult } from "../types/save"
-import { useGameStore } from "../stores/useGameStore"
+import { useGameStore, START_FEN } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { useLibraryStore } from "../stores/useLibraryStore"
 import { useSaveStore } from "../stores/useSaveStore"
 import { usePersistenceStore } from "../stores/usePersistenceStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
+import { useEditorStore } from "../stores/useEditorStore"
 import { getOpeningsCache, detectOpening } from "./openings"
 
 /**
@@ -107,7 +108,8 @@ export function buildSaveData(): SaveData {
   // Auto-tag the opening (from the cached ECO map) and result, without
   // overwriting anything the user set explicitly.
   const map = getOpeningsCache()
-  if (map && g.fullHistory.length > 0) {
+  // Opening detection only makes sense for games from the standard start.
+  if (map && g.fullHistory.length > 0 && g.startFen === START_FEN) {
     const opening = detectOpening(g.fullHistory, map)
     if (opening) meta.opening = { eco: opening.eco, name: opening.name, ply: opening.lastBookPly }
   }
@@ -120,6 +122,7 @@ export function buildSaveData(): SaveData {
     version: 1,
     meta,
     game: {
+      startFen: g.startFen,
       fullHistory: g.fullHistory,
       historyIndex: g.historyIndex,
       orientation: g.orientation,
@@ -149,7 +152,9 @@ export function buildSaveData(): SaveData {
  */
 export function commitToLibrary(): string | null {
   const g = useGameStore.getState()
-  if (g.fullHistory.length < 1) return null
+  // Saveable once there's a move, or a custom (editor) starting position.
+  const hasCustomStart = g.startFen !== START_FEN
+  if (g.fullHistory.length < 1 && !hasCustomStart) return null
 
   let id = g.currentLibraryId
   if (!id) {
@@ -184,6 +189,7 @@ export async function saveNow(): Promise<void> {
 /** Archive the current game (already saved) and open a blank board. */
 export function newGame() {
   commitToLibrary()
+  useEditorStore.getState().exit()
 
   const orientation = useGameStore.getState().orientation
   useMetaStore.getState().reset()
@@ -194,6 +200,30 @@ export function newGame() {
 
   if (idleTimer) clearTimeout(idleTimer)
   useSaveStore.getState().markIdle()
+}
+
+/**
+ * Open the position editor seeded from the current game's position, so you can
+ * rearrange the pieces of the game you already have open. Commits first so the
+ * current game is safely in the library.
+ */
+export function openEditor() {
+  commitToLibrary()
+  useEditorStore.getState().enter(useGameStore.getState().fen)
+}
+
+/**
+ * Save the editor's position into the current game (same library entry): it
+ * becomes the game's starting position. The game then plays, analyzes, saves,
+ * and exports through the normal flow. Resets the move list, keeps name/tags.
+ */
+export function saveEditorPosition(fen: string, orientation: "white" | "black") {
+  useEditorStore.getState().exit()
+  useGameStore.getState().setStartPosition(fen)
+  useGameStore.setState({ orientation })
+  useBoardStore.getState().clearAll()
+  useAnalysisStore.getState().clear()
+  void saveNow()
 }
 
 /** Toggle favorite on the working game's library entry (saving first if needed). */

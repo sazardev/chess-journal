@@ -1,8 +1,14 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+<<<<<<< HEAD
   "productName": "Chess Journal",
   "version": "0.1.14",
   "identifier": "com.chess-journal.app",
+=======
+  "productName": "Chess Mini",
+  "version": "0.1.15",
+  "identifier": "com.chess-mini.app",
+>>>>>>> 445bba89abe07078e7b3c511c53c4c0030f9ac69
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",

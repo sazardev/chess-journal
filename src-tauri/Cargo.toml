@@ -1,7 +1,13 @@
 [package]
+<<<<<<< HEAD
 name = "chess-journal"
 version = "0.1.14"
 description = "Your gamebook for chess"
+=======
+name = "chess-mini"
+version = "0.1.15"
+description = "Minimalist chess analyzer & game journal"
+>>>>>>> 445bba89abe07078e7b3c511c53c4c0030f9ac69
 authors = ["sazardev"]
 license = "MIT"
 repository = "https://github.com/sazardev/chess-journal"

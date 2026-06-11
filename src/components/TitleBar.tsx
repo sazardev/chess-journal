@@ -70,8 +70,9 @@ export default function TitleBar({
       data-tauri-drag-region
       className="fixed top-0 left-0 right-0 z-50 flex h-[calc(2.25rem+env(safe-area-inset-top))] items-center justify-between bg-white px-2 pt-[env(safe-area-inset-top)] select-none"
     >
-      {touch && mobileSection ? (
-        /* Contextual mobile app bar: back arrow + section name. */
+      {mobileSection ? (
+        /* Contextual app bar: back arrow + section name (any device). */
+        <>
         <div className="flex items-center gap-1.5 pl-1">
           <button
             onClick={onMobileBack}
@@ -86,6 +87,41 @@ export default function TitleBar({
             {mobileSection === "library" ? "Library" : "Settings"}
           </span>
         </div>
+        {/* Right: window controls on desktop, spacer on touch */}
+        {touch ? (
+          <div className="w-2" aria-hidden />
+        ) : (
+        <div className="flex items-center">
+          <button onClick={minimize} className={winBtn} aria-label="Minimize">
+            <svg width="10" height="1" viewBox="0 0 10 1">
+              <rect width="10" height="1" fill="currentColor" />
+            </svg>
+          </button>
+          <button onClick={handleToggleMaximize} className={winBtn} aria-label={maximized ? "Restore" : "Maximize"}>
+            {maximized ? (
+              <svg width="10" height="10" viewBox="0 0 10 10">
+                <rect x="2" y="0" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="1" />
+                <rect x="0" y="2" width="8" height="8" fill="#fff" stroke="currentColor" strokeWidth="1" />
+              </svg>
+            ) : (
+              <svg width="10" height="10" viewBox="0 0 10 10">
+                <rect width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={close}
+            className="flex h-8 w-8 md:w-10 items-center justify-center text-gray-400 transition-colors hover:bg-black hover:text-white"
+            aria-label="Close"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10">
+              <line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.2" />
+              <line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.2" />
+            </svg>
+          </button>
+        </div>
+        )}
+        </>
       ) : (
         <>
       {/* Left: wordmark + version + tools.

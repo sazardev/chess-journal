@@ -92,6 +92,8 @@ export default function Library({ open, onToggle }: Props) {
 
   const handleLoad = useCallback(
     (entryId: string) => {
+      usePuzzleStore.getState().exit()
+
       const state = useLibraryStore.getState()
       const entry = state.entries.find((e) => e.id === entryId)
       if (!entry) return
@@ -191,6 +193,7 @@ export default function Library({ open, onToggle }: Props) {
   }, [])
 
   const handleLoadClassic = useCallback((g: ClassicGame) => {
+    usePuzzleStore.getState().exit()
     // loadClassic sets the working game as transient (autosave skips it).
     useGameStore.getState().loadClassic(g.moves)
     useMetaStore.getState().load({

@@ -220,7 +220,7 @@ export default function App() {
         }}
       />
 
-      <div className="relative flex flex-1 overflow-hidden min-h-0 pt-[calc(2.25rem+env(safe-area-inset-top))]">
+      <div className="relative flex flex-1 min-h-0 pt-[calc(2.25rem+env(safe-area-inset-top))]">
         <Library open={libraryOpen} onToggle={() => setLibraryOpen((v) => !v)} />
 
         {libraryOpen && (
@@ -230,7 +230,8 @@ export default function App() {
           />
         )}
 
-        <div className="flex flex-1 flex-col md:flex-row overflow-hidden min-h-0">
+        <div className="flex flex-1 flex-col min-h-0">
+          <div className="flex flex-1 flex-col md:flex-row overflow-hidden min-h-0">
           {/* Board (swipe left/right to step through moves on touch) */}
           <div
             className="flex h-[52vh] h-[52dvh] shrink-0 items-center justify-center p-2 md:h-auto md:min-h-0 md:flex-[2] md:p-4"
@@ -282,19 +283,18 @@ export default function App() {
             />
           </div>
         )}
-      </div>
 
-      {/* Move input — hidden on mobile while a full-screen overlay is open, and
-          entirely while solving a puzzle (puzzle moves go through the board) */}
-      {!puzzleActive && (
-        <div className={overlayOpenMobile ? "hidden md:block" : ""}>
-          <MoveInput inputRef={moveInputRef} engine={engine} />
-        </div>
-      )}
+        {/* Move input — hidden on mobile while a full-screen overlay is open, and
+            entirely while solving a puzzle (puzzle moves go through the board) */}
+        {!puzzleActive && (
+          <div className={overlayOpenMobile ? "hidden md:block" : ""}>
+            <MoveInput inputRef={moveInputRef} engine={engine} />
+          </div>
+        )}
 
-      {/* Mobile bottom navigation — hidden while the keyboard is open (docks the
-          move input above it) */}
-      <nav className={`${keyboardOpen ? "hidden" : "flex"} shrink-0 border-t border-gray-100 pb-[env(safe-area-inset-bottom)] md:hidden`}>
+        {/* Mobile bottom navigation — hidden while the keyboard is open (docks the
+            move input above it) */}
+        <nav className={`${keyboardOpen ? "hidden" : "flex"} shrink-0 border-t border-gray-100 pb-[env(safe-area-inset-bottom)] md:hidden`}>
         <button
           onClick={() => {
             setLibraryOpen(false)
@@ -348,6 +348,9 @@ export default function App() {
           Settings
         </button>
       </nav>
+
+        </div>
+      </div>
 
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       {shortcutsOpen && <ShortcutsOverlay onClose={() => setShortcutsOpen(false)} />}

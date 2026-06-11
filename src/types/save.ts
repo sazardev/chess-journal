@@ -17,6 +17,8 @@ export interface SaveData {
     playerColor?: PlayerColor
   }
   game: {
+    /** Custom starting position; absent/standard for normal games. */
+    startFen?: string
     fullHistory: Move[]
     historyIndex: number
     orientation: "white" | "black"

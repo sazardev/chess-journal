@@ -4,6 +4,7 @@ import type { Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { usePuzzleStore } from "../stores/usePuzzleStore"
+import { useTouch } from "../hooks/useTouch"
 import EvalBar from "./EvalBar"
 import { computeHeatmap } from "../lib/heatmap"
 import type { useEngine } from "../hooks/useEngine"
@@ -41,6 +42,11 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
   const highlights = useBoardStore((s) => s.highlights)
   const highlightSquare = useBoardStore((s) => s.highlightSquare)
 
+  // On touch (mobile), coordinates render inside the board so it can take the
+  // full width and stay centered. Desktop keeps the external rank/file labels,
+  // which reserve 1/9 of the space.
+  const touch = useTouch()
+
   const [boardSize, setBoardSize] = useState(560)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -51,12 +57,17 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
     const ro = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width
       const h = entry.contentRect.height
-      const size = Math.floor(Math.min((Math.max(w, 200) * 8) / 9, (Math.max(h, 200) * 8) / 9, 640))
+      // Mobile: full width minus the thin eval bar (when shown). Desktop: reserve
+      // 1/9 for the external coordinate column/row.
+      const evalReserve = showEngine ? 18 : 0
+      const size = touch
+        ? Math.floor(Math.min(Math.max(w - evalReserve, 200), Math.max(h, 200), 720))
+        : Math.floor(Math.min((Math.max(w, 200) * 8) / 9, (Math.max(h, 200) * 8) / 9, 640))
       setBoardSize(Math.max(200, size))
     })
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [touch, showEngine])
 
   const labelSize = boardSize / 8
   const coordStyle: React.CSSProperties = {
@@ -184,6 +195,15 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
     return styles
   }, [highlights, selectedSquare, heat, puzzleActive, feedback, feedbackSquare])
 
+  // In-board coordinates (mobile only) — monochrome, tucked into the square
+  // corners. Two colors so they read on both the white and gray squares.
+  const notationFont: React.CSSProperties = {
+    fontSize: Math.max(8, Math.round(boardSize / 40)),
+    fontWeight: 600,
+    fontFamily: "var(--font-mono)",
+    userSelect: "none",
+  }
+
   const options: ChessboardOptions = {
     id: "chess-mini",
     position: fen,
@@ -192,7 +212,11 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
     allowDrawingArrows: false,
     arrows: boardArrows,
     squareStyles,
-    showNotation: false,
+    showNotation: touch,
+    alphaNotationStyle: { ...notationFont, position: "absolute", bottom: 1, right: 3 },
+    numericNotationStyle: { ...notationFont, position: "absolute", top: 1, left: 3 },
+    lightSquareNotationStyle: { color: "#9ca3af" },
+    darkSquareNotationStyle: { color: "#525252" },
     animationDurationInMs: 120,
     boardStyle: {
       borderRadius: "0",
@@ -211,13 +235,15 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
   return (
     <div ref={containerRef} id="chess-mini-export" className="flex flex-col items-center">
       <div className="flex">
-        <div className="flex flex-col">
-          {ranksDisplay.map((rank) => (
-            <div key={rank} style={coordStyle}>
-              {rank}
-            </div>
-          ))}
-        </div>
+        {!touch && (
+          <div className="flex flex-col">
+            {ranksDisplay.map((rank) => (
+              <div key={rank} style={coordStyle}>
+                {rank}
+              </div>
+            ))}
+          </div>
+        )}
 
         {showEngine && (
           <EvalBar
@@ -237,13 +263,15 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
         </div>
       </div>
 
-      <div className="flex" style={{ paddingLeft: labelSize }}>
-        {filesDisplay.map((file) => (
-          <div key={file} style={coordStyle}>
-            {file}
-          </div>
-        ))}
-      </div>
+      {!touch && (
+        <div className="flex" style={{ paddingLeft: labelSize }}>
+          {filesDisplay.map((file) => (
+            <div key={file} style={coordStyle}>
+              {file}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

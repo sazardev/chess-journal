@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { useUpdateStore } from "../stores/useUpdateStore"
+import { usePlatform } from "../hooks/usePlatform"
 import DataActions from "./DataActions"
 import ShortcutsList from "./ShortcutsList"
 import Changelog from "./Changelog"
@@ -10,6 +11,7 @@ const REPO = "github.com/sazardev/chess-mini"
  * pieces that used to live in the title bar on desktop: version/update, data
  * management and the shortcut reference. */
 export default function MobileSettings({ onErased }: { onErased?: () => void }) {
+  const platform = usePlatform()
   const status = useUpdateStore((s) => s.status)
   const version = useUpdateStore((s) => s.version)
   const progress = useUpdateStore((s) => s.progress)
@@ -28,8 +30,12 @@ export default function MobileSettings({ onErased }: { onErased?: () => void }) 
     </p>
   )
 
+  // On Android the outer overlay has paddingTop = titleBarH already applied,
+  // so this scroll container just needs bottom padding to clear the system nav bar.
+  const bottomPad = platform === "android" ? "pb-[4rem]" : "pb-6"
+
   return (
-    <div className="h-full overflow-y-auto bg-white">
+    <div className={`h-full overflow-y-auto bg-white ${bottomPad}`}>
       {/* Brand + version */}
       <div className="flex items-center gap-3 px-4 pt-5">
         <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden>
@@ -72,7 +78,9 @@ export default function MobileSettings({ onErased }: { onErased?: () => void }) 
           {status === "available" ? (
             <button
               onClick={install}
-              className="bg-black px-3 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-white transition-opacity hover:opacity-80"
+              className={`bg-black font-mono text-[10px] uppercase tracking-[0.1em] text-white transition-opacity hover:opacity-80 ${
+                platform === "android" ? "px-4 py-3" : "px-3 py-2"
+              }`}
             >
               Update &amp; restart
             </button>
@@ -82,7 +90,9 @@ export default function MobileSettings({ onErased }: { onErased?: () => void }) 
             <button
               onClick={() => check()}
               disabled={status === "checking"}
-              className="px-3 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-gray-400 transition-colors hover:bg-gray-100 hover:text-black disabled:opacity-40"
+              className={`font-mono text-[10px] uppercase tracking-[0.1em] text-gray-400 transition-colors hover:bg-gray-100 hover:text-black disabled:opacity-40 ${
+                platform === "android" ? "px-4 py-3" : "px-3 py-2"
+              }`}
             >
               Check
             </button>

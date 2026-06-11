@@ -23,6 +23,7 @@ import { useOpeningDetection } from "./hooks/useOpeningDetection"
 import { useTouch } from "./hooks/useTouch"
 import { useSwipe } from "./hooks/useSwipe"
 import { useKeyboardOpen } from "./hooks/useKeyboardOpen"
+import { usePlatform } from "./hooks/usePlatform"
 import { useGameStore } from "./stores/useGameStore"
 import { useBoardStore } from "./stores/useBoardStore"
 import { useLibraryStore } from "./stores/useLibraryStore"
@@ -85,10 +86,10 @@ export default function App() {
   const restoredRef = useRef(false)
 
   useEffect(() => {
-    configInit()
-    persistenceInit()
+    configInit().catch(() => {})
+    persistenceInit().catch(() => {})
     // Silent check on launch — surfaces a dot on the version chip if newer.
-    useUpdateStore.getState().check(true)
+    useUpdateStore.getState().check(true).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -205,15 +206,40 @@ export default function App() {
   const touch = useTouch()
   const boardSwipe = useSwipe(goForward, goBack)
   const keyboardOpen = useKeyboardOpen()
+  const platform = usePlatform()
   const overlayOpenMobile = libraryOpen || mobileSettingsOpen
 
+  // On Android, `env(safe-area-inset-*)` CSS variables may be 0.
+  // Fall back to fixed values so system bars don't clip the UI.
+  // The bottom safe area (~48dp for 3-button nav) is handled as root padding
+  // so the entire flex layout shifts up, not just the bottom nav.
+  const rootPb = platform === "android" ? "pb-[3.5rem]" : ""
+  const titleBarH =
+    platform === "android" ? "calc(2.25rem + 2rem)" : "calc(2.25rem + env(safe-area-inset-top))"
+  const contentPadTop =
+    platform === "android"
+      ? "pt-[calc(2.25rem+2rem)]"
+      : "pt-[calc(2.25rem+env(safe-area-inset-top))]"
+  const backdropTop =
+    platform === "android"
+      ? "top-[calc(2.25rem+2rem)]"
+      : "top-[calc(2.25rem+env(safe-area-inset-top))]"
+  // Android board gets more vertical space for an immersive feel
+  const boardMobile =
+    platform === "android" ? "h-[56vh] h-[56dvh]" : "h-[52vh] h-[52dvh]"
+  // Bottom nav only needs safe-area padding on iOS (Android handled by rootPb)
+  const navPadBottom =
+    platform === "android" ? "" : "pb-[env(safe-area-inset-bottom)]"
+  // Android: taller touch targets; iOS/desktop: compact
   const navBtn = (active: boolean) =>
-    `flex flex-1 flex-col items-center justify-center gap-0.5 py-2 font-mono text-[9px] uppercase tracking-[0.12em] transition-colors ${
+    `flex flex-1 flex-col items-center justify-center gap-1 ${
+      platform === "android" ? "py-3 min-h-[3.5rem]" : "py-2.5"
+    } font-mono text-[10px] uppercase tracking-[0.12em] transition-colors ${
       active ? "text-black" : "text-gray-400"
     }`
 
   return (
-    <div className="flex h-screen h-dvh flex-col bg-white text-black">
+    <div className={`flex h-screen h-dvh flex-col bg-white text-black ${rootPb}`}>
       <TitleBar
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenShortcuts={() => setShortcutsOpen(true)}
@@ -225,21 +251,38 @@ export default function App() {
         }}
       />
 
-      <div className="relative flex flex-1 min-h-0 pt-[calc(2.25rem+env(safe-area-inset-top))]">
-        <Library open={libraryOpen} onToggle={() => setLibraryOpen((v) => !v)} />
+      {/* Mobile full-screen Settings — fixed overlay so it always fills the
+          viewport regardless of any parent's positioning context. TitleBar
+          (z-50) renders on top; its back arrow is the only close affordance. */}
+      {touch && mobileSettingsOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-white"
+          style={{ paddingTop: titleBarH }}
+        >
+          <MobileSettings
+            onErased={() => {
+              setMobileSettingsOpen(false)
+              setPanelTab("moves")
+            }}
+          />
+        </div>
+      )}
+
+      <div className={`relative flex flex-1 min-h-0 ${contentPadTop}`}>
+        <Library open={libraryOpen} onToggle={() => setLibraryOpen((v) => !v)} topInset={titleBarH} />
 
         {libraryOpen && (
           <div
-            className="fixed inset-x-0 bottom-0 top-[calc(2.25rem+env(safe-area-inset-top))] z-30 bg-black/20 lg:hidden"
+            className={`fixed inset-x-0 bottom-0 ${backdropTop} z-30 bg-black/20 lg:hidden`}
             onClick={() => setLibraryOpen(false)}
           />
         )}
 
-        <div className="flex flex-1 flex-col min-h-0">
-          <div className="flex flex-1 flex-col md:flex-row overflow-hidden min-h-0">
+        <div className="flex flex-1 flex-col min-h-0 min-w-0">
+          <div className="flex flex-1 flex-col md:flex-row overflow-hidden min-h-0 min-w-0">
           {/* Board (swipe left/right to step through moves on touch) */}
           <div
-            className="flex h-[52vh] h-[52dvh] shrink-0 items-center justify-center p-2 md:h-auto md:min-h-0 md:flex-[2] md:p-4"
+            className={`flex ${boardMobile} shrink-0 items-center justify-center p-2 md:h-auto md:min-h-0 md:flex-[2] md:p-4`}
             {...(touch && !puzzleActive && !editorActive ? boardSwipe : {})}
           >
             {editorActive ? <BoardEditor /> : <Board engine={engine} />}
@@ -281,18 +324,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Mobile-only full-screen Settings page */}
-        {mobileSettingsOpen && (
-          <div className="absolute inset-0 z-40 bg-white md:hidden">
-            <MobileSettings
-              onErased={() => {
-                setMobileSettingsOpen(false)
-                setPanelTab("moves")
-              }}
-            />
-          </div>
-        )}
-
         {/* Move input — hidden on mobile while a full-screen overlay is open, and
             entirely while solving a puzzle or editing a position (no move list there) */}
         {!puzzleActive && !editorActive && (
@@ -303,7 +334,7 @@ export default function App() {
 
         {/* Mobile bottom navigation — hidden while the keyboard is open (docks the
             move input above it) */}
-        <nav className={`${keyboardOpen ? "hidden" : "flex"} shrink-0 border-t border-gray-100 pb-[env(safe-area-inset-bottom)] md:hidden`}>
+        <nav className={`${keyboardOpen ? "hidden" : "flex"} shrink-0 border-t border-gray-100 ${navPadBottom} md:hidden`}>
         <button
           onClick={() => {
             setLibraryOpen(false)
@@ -312,7 +343,7 @@ export default function App() {
           }}
           className={navBtn(!overlayOpenMobile && panelTab === "moves")}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg width={platform === "android" ? 20 : 18} height={platform === "android" ? 20 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="4" cy="6" r="0.8" /><circle cx="4" cy="12" r="0.8" /><circle cx="4" cy="18" r="0.8" />
             <line x1="9" y1="6" x2="20" y2="6" /><line x1="9" y1="12" x2="20" y2="12" /><line x1="9" y1="18" x2="20" y2="18" />
           </svg>
@@ -326,7 +357,7 @@ export default function App() {
           }}
           className={navBtn(!overlayOpenMobile && panelTab === "analysis")}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width={platform === "android" ? 20 : 18} height={platform === "android" ? 20 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 12 7 12 10 4 14 20 17 12 21 12" />
           </svg>
           Analysis
@@ -338,7 +369,7 @@ export default function App() {
           }}
           className={navBtn(libraryOpen)}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width={platform === "android" ? 20 : 18} height={platform === "android" ? 20 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 3 3 8l9 5 9-5-9-5z" /><path d="M3 13l9 5 9-5" />
           </svg>
           Library
@@ -350,7 +381,7 @@ export default function App() {
           }}
           className={navBtn(mobileSettingsOpen)}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width={platform === "android" ? 20 : 18} height={platform === "android" ? 20 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>

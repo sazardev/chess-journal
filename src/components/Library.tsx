@@ -44,9 +44,12 @@ function relativeTime(iso: string): string {
 interface Props {
   open: boolean
   onToggle: () => void
+  /** Title bar height — used to offset the mobile drawer below the fixed bar,
+      so the tab row and header aren't hidden behind it. */
+  topInset?: string
 }
 
-export default function Library({ open, onToggle }: Props) {
+export default function Library({ open, onToggle, topInset }: Props) {
   const entries = useLibraryStore((s) => s.entries)
   const removeEntry = useLibraryStore((s) => s.removeEntry)
   const togglePin = useLibraryStore((s) => s.togglePin)
@@ -302,7 +305,7 @@ export default function Library({ open, onToggle }: Props) {
     return (
       <div
         key={entry.id}
-        className={`group relative -mx-2 px-2 py-1.5 transition-colors hover:bg-gray-50 ${
+        className={`group relative -mx-2 px-2 py-2.5 md:py-1.5 transition-colors hover:bg-gray-50 ${
           isLoaded ? "bg-gray-100" : ""
         }`}
       >
@@ -334,8 +337,16 @@ export default function Library({ open, onToggle }: Props) {
             </button>
           </div>
         ) : (
-          <button
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => handleLoad(entry.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                handleLoad(entry.id)
+              }
+            }}
             className="w-full text-left"
           >
             <div className="flex items-start justify-between gap-1">
@@ -347,7 +358,7 @@ export default function Library({ open, onToggle }: Props) {
                   {entry.pinned && (
                     <span className="shrink-0 text-[9px] leading-none">★</span>
                   )}
-                  <p className="font-mono text-[10px] md:text-[11px] text-black truncate">
+                  <p className="font-mono text-[11px] text-black truncate">
                     {entry.data.meta.name || "Untitled"}
                     {isLoaded && (
                       <span className="ml-1 text-[8px] text-gray-400 font-normal">loaded</span>
@@ -383,21 +394,21 @@ export default function Library({ open, onToggle }: Props) {
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-0.5 shrink-0">
+              <div className="flex items-center gap-0 shrink-0">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     e.preventDefault()
                     handleStartEdit(e, entry.id, entry.data.meta.name)
                   }}
-                  className={`font-mono text-sm ${actionVis} text-gray-400 hover:text-black transition-all px-0.5`}
+                  className={`font-mono text-sm ${actionVis} text-gray-400 hover:text-black transition-all p-1.5 md:px-0.5 md:py-0`}
                 >
                   ✎
                 </button>
                 <button
                   onClick={(e) => handleFavorite(e, entry.id)}
                   title="Favorite"
-                  className={`font-mono text-sm transition-all px-0.5 ${
+                  className={`font-mono text-sm transition-all p-1.5 md:px-0.5 md:py-0 ${
                     entry.favorite
                       ? "text-black"
                       : `${actionVis} text-gray-400 hover:text-black`
@@ -408,7 +419,7 @@ export default function Library({ open, onToggle }: Props) {
                 <button
                   onClick={(e) => handlePin(e, entry.id)}
                   title="Pin"
-                  className={`font-mono text-sm transition-all px-0.5 ${
+                  className={`font-mono text-sm transition-all p-1.5 md:px-0.5 md:py-0 ${
                     entry.pinned
                       ? "text-black"
                       : `${actionVis} text-gray-400 hover:text-black`
@@ -418,20 +429,23 @@ export default function Library({ open, onToggle }: Props) {
                 </button>
                 <button
                   onClick={(e) => handleDelete(e, entry.id)}
-                  className={`font-mono text-sm ${actionVis} text-gray-400 hover:text-black transition-all px-0.5`}
+                  className={`font-mono text-sm ${actionVis} text-gray-400 hover:text-black transition-all p-1.5 md:px-0.5 md:py-0`}
                 >
                   ×
                 </button>
               </div>
             </div>
-          </button>
+          </div>
         )}
       </div>
     )
   }
 
   return (
-    <div className="relative z-40 flex shrink-0 max-lg:absolute max-lg:inset-y-0 max-lg:left-0">
+    <div
+      className="relative z-40 flex shrink-0 max-lg:absolute max-lg:top-[var(--tb-h,0px)] max-lg:bottom-0 max-lg:left-0"
+      style={{ "--tb-h": topInset } as React.CSSProperties}
+    >
       <div
         className={`overflow-hidden transition-all duration-200 max-lg:shadow-xl ${
           open ? "w-screen md:w-72 lg:w-80" : "w-0"
@@ -486,11 +500,11 @@ export default function Library({ open, onToggle }: Props) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search..."
-              className="flex-1 bg-gray-50 font-mono text-[10px] outline-none placeholder:text-gray-300 text-black px-1.5 py-0.5"
+              className="flex-1 bg-gray-50 font-mono text-[11px] md:text-[10px] outline-none placeholder:text-gray-300 text-black px-2 py-1.5 md:px-1.5 md:py-0.5"
             />
             <button
               onClick={handleCycleSort}
-              className="shrink-0 font-mono text-[8px] uppercase tracking-[0.05em] px-1.5 py-0.5 bg-gray-50 text-gray-400 hover:text-black transition-colors"
+              className="shrink-0 font-mono text-[9px] md:text-[8px] uppercase tracking-[0.05em] px-2 py-1.5 md:px-1.5 md:py-0.5 bg-gray-50 text-gray-400 hover:text-black transition-colors"
             >
               {SORT_LABELS[sortIdx]}
             </button>
@@ -500,12 +514,12 @@ export default function Library({ open, onToggle }: Props) {
             {([
               ["all", "All"],
               ["pinned", "★ Pinned"],
-              ["favorite", "♥ Favorites"],
+              ["favorite", "♥ Favs"],
             ] as const).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => setFilter(key)}
-                className={`font-mono text-[8px] uppercase tracking-[0.08em] px-1.5 py-0.5 transition-colors ${
+                className={`font-mono text-[9px] md:text-[8px] uppercase tracking-[0.08em] px-2 py-1.5 md:px-1.5 md:py-0.5 transition-colors ${
                   filter === key
                     ? "bg-black text-white"
                     : "text-gray-400 hover:text-black hover:bg-gray-100"

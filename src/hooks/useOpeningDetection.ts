@@ -30,7 +30,7 @@ export function useOpeningDetection(enabled: boolean) {
       unsub = useGameStore.subscribe((s, p) => {
         if (s.fen !== p.fen) recompute()
       })
-    })
+    }).catch(() => {})
 
     return () => {
       active = false

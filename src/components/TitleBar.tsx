@@ -6,6 +6,7 @@ import { useLibraryStore } from "../stores/useLibraryStore"
 import { useUpdateStore } from "../stores/useUpdateStore"
 import { toggleCurrentFavorite } from "../lib/session"
 import { useTouch } from "../hooks/useTouch"
+import { usePlatform } from "../hooks/usePlatform"
 import SaveIndicator from "./SaveIndicator"
 
 interface Props {
@@ -28,6 +29,16 @@ export default function TitleBar({
   const updateAvailable = useUpdateStore((s) => s.status === "available")
   const [maximized, setMaximized] = useState(false)
   const touch = useTouch()
+  const platform = usePlatform()
+
+  const titleBarH =
+    platform === "android"
+      ? "h-[calc(2.25rem+2rem)]"
+      : "h-[calc(2.25rem+env(safe-area-inset-top))]"
+  const titleBarPt =
+    platform === "android"
+      ? "pt-[2rem]"
+      : "pt-[env(safe-area-inset-top)]"
 
   const name = useMetaStore((s) => s.name)
   const setName = useMetaStore((s) => s.setName)
@@ -42,8 +53,11 @@ export default function TitleBar({
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    isMaximized().then(setMaximized)
-  }, [])
+    // Window controls only exist on desktop; on touch (Android) the window
+    // plugin isn't wired up and isMaximized() rejects with "Plugin window not
+    // initialized". Skip it there.
+    if (!touch) isMaximized().then(setMaximized)
+  }, [touch])
 
   const handleToggleMaximize = useCallback(async () => {
     await toggleMaximize()
@@ -68,7 +82,7 @@ export default function TitleBar({
   return (
     <div
       data-tauri-drag-region
-      className="fixed top-0 left-0 right-0 z-50 flex h-[calc(2.25rem+env(safe-area-inset-top))] items-center justify-between bg-white px-2 pt-[env(safe-area-inset-top)] select-none"
+      className={`fixed top-0 left-0 right-0 z-50 flex ${titleBarH} items-center justify-between bg-white px-2 ${titleBarPt} select-none`}
     >
       {mobileSection ? (
         /* Contextual app bar: back arrow + section name (any device). */
@@ -77,13 +91,15 @@ export default function TitleBar({
           <button
             onClick={onMobileBack}
             aria-label="Back"
-            className="flex h-8 w-8 items-center justify-center text-gray-500 hover:text-black transition-colors -ml-1"
+            className={`flex items-center justify-center text-gray-500 hover:text-black transition-colors -ml-1 ${
+              platform === "android" ? "h-11 w-11" : "h-8 w-8"
+            }`}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width={platform === "android" ? 22 : 18} height={platform === "android" ? 22 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
-          <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-black">
+          <span className={`font-mono uppercase tracking-[0.15em] text-black ${platform === "android" ? "text-[12px]" : "text-[11px]"}`}>
             {mobileSection === "library" ? "Library" : "Settings"}
           </span>
         </div>
@@ -170,7 +186,9 @@ export default function TitleBar({
           onClick={() => hasMoves && toggleCurrentFavorite()}
           title="Favorite (Ctrl+D)"
           aria-label="Toggle favorite"
-          className={`shrink-0 text-[11px] leading-none transition-colors ${
+          className={`shrink-0 flex items-center justify-center leading-none transition-colors ${
+            platform === "android" ? "h-9 w-9 text-[14px]" : "h-6 w-6 text-[11px]"
+          } ${
             !hasMoves
               ? "text-gray-200 cursor-default"
               : isFavorite
@@ -192,13 +210,17 @@ export default function TitleBar({
               if (e.key === "Escape") setEditing(false)
             }}
             placeholder="Untitled"
-            className="min-w-0 max-w-[40vw] bg-transparent text-center font-mono text-[11px] text-black outline-none placeholder:text-gray-300"
+            className={`min-w-0 max-w-[40vw] bg-transparent text-center font-mono text-black outline-none placeholder:text-gray-300 ${
+              platform === "android" ? "text-[12px]" : "text-[11px]"
+            }`}
           />
         ) : (
           <button
             onClick={startEdit}
             title="Rename"
-            className="min-w-0 truncate font-mono text-[11px] text-gray-500 hover:text-black transition-colors"
+            className={`min-w-0 truncate font-mono text-gray-500 hover:text-black transition-colors ${
+              platform === "android" ? "text-[12px] py-2" : "text-[11px]"
+            }`}
           >
             {name || "Untitled"}
           </button>

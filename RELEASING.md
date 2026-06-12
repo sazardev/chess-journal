@@ -1,7 +1,7 @@
 # Releasing Chess Journal
 
-Chess Journal ships as a Windows installer (NSIS, per-user — no admin needed) and
-updates itself automatically via the Tauri updater. Releases are produced by the
+Chess Journal ships as a Windows installer, a Linux AppImage, and an Android APK.
+All three are built and attached to the GitHub Release automatically by the
 **Release** GitHub Action.
 
 ---
@@ -116,21 +116,37 @@ the games. Validate hand-authored games in `classics.ts` with
 
 ## Android (APK)
 
-Chess Journal also builds for Android (Tauri mobile). The UI is already responsive,
-and desktop-only plugins (auto-update, relaunch) are gated off mobile.
+Chess Journal builds for Android (Tauri mobile). The UI is responsive and
+desktop-only plugins (auto-update, relaunch) are gated off mobile. On Android,
+AI commentary uses Transformers.js (WASM) — no native process needed.
 
-- **Build an installable APK:** **Actions → Android APK → Run workflow**. It sets up
-  the Android SDK/NDK, runs `tauri android init` + `tauri android build --apk --debug`
-  (arm64, debug-signed so it installs without a keystore) and uploads the APK as an
-  artifact. Download it and sideload onto your phone.
-- **Locally** (needs Android Studio / SDK + NDK, `NDK_HOME` set):
-  ```bash
-  npm run tauri android init
-  npm run tauri android dev      # run on a device/emulator
-  npm run tauri android build --apk --debug
-  ```
-- A Play Store **release** APK/AAB needs a signing keystore (set `tauri.conf.json`
-  → `bundle.android.signing` or sign the AAB) — out of scope for the debug build.
+**Automatic:** the Release workflow dispatches `android.yml` after creating the
+tag; the signed APK is attached to the GitHub Release within ~10 minutes.
+
+**Manual rebuild:** **Actions → Android APK → Run workflow**, pick a branch/tag.
+
+**Locally** (needs Android Studio / SDK + NDK, `NDK_HOME` set):
+```bash
+npm run tauri android init
+npm run tauri android dev      # run on a device/emulator
+npm run tauri android build --apk
+```
+
+## Linux (AppImage)
+
+**Automatic:** the `linux` job in the Release workflow builds the AppImage on
+`ubuntu-22.04` and attaches it to the GitHub Release alongside the Windows installer.
+
+**Locally:**
+```bash
+npm run tauri build -- --bundles appimage
+# output: src-tauri/target/release/bundle/appimage/*.AppImage
+```
+
+Users run the AppImage without installing anything:
+```bash
+chmod +x Chess-Journal_*.AppImage && ./Chess-Journal_*.AppImage
+```
 
 ## Regenerate the app icon
 

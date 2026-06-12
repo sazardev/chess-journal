@@ -1,11 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toPng } from "html-to-image"
 import { type Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
-import { useConfigStore, ENGINE_PRESETS, type EnginePresetId, ASSISTIVE_ELO_PRESETS } from "../stores/useConfigStore"
+import { useConfigStore, ENGINE_PRESETS, type EnginePresetId } from "../stores/useConfigStore"
 import { useAssistiveStore } from "../stores/useAssistiveStore"
 import { buildSaveData, openEditor } from "../lib/session"
 import { candidateColor } from "../lib/heatmap"
@@ -14,6 +14,57 @@ import { saveTextFile, fileStem } from "../lib/exporters"
 import type { useEngine } from "../hooks/useEngine"
 import type { useGameAnalyzer } from "../hooks/useGameAnalyzer"
 import MetaEditor from "./MetaEditor"
+
+import { ASSISTIVE_ELO_PRESETS } from "../stores/useConfigStore"
+
+const ELO_PRESETS = ASSISTIVE_ELO_PRESETS
+
+function EloSelect({ value, onChange }: { value: number; onChange: (elo: number) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handle)
+    return () => document.removeEventListener("mousedown", handle)
+  }, [])
+
+  const selected = ELO_PRESETS.find((p) => p.elo === value) ?? ELO_PRESETS[2]
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1 transition-colors w-full text-left flex items-center justify-between gap-1 ${
+          open ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
+        }`}
+      >
+        {selected.label}
+        <span className="text-[7px] ml-0.5 opacity-50">{open ? "\u25B2" : "\u25BC"}</span>
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-0.5 bg-white border border-gray-200 shadow-sm z-50 min-w-full">
+          {ELO_PRESETS.map((p) => (
+            <button
+              key={p.elo}
+              onClick={() => { onChange(p.elo); setOpen(false) }}
+              className={`block w-full text-left font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1 transition-colors ${
+                p.elo === value
+                  ? "bg-black text-white"
+                  : "text-gray-400 hover:text-black hover:bg-gray-100"
+              }`}
+            >
+              {p.label}
+              <span className="text-[7px] ml-1 opacity-50">{p.elo}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface ControlBarProps {
   engine: ReturnType<typeof useEngine>
@@ -254,27 +305,7 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
-              ELO
-            </span>
-            <div className="flex gap-0.5">
-              {ASSISTIVE_ELO_PRESETS.map((p) => (
-                <button
-                  key={p.elo}
-                  onClick={() => setAssistiveElo(p.elo)}
-                  className={`font-mono text-[9px] uppercase tracking-[0.08em] px-1.5 py-1 transition-colors ${
-                    assistiveElo === p.elo
-                      ? "bg-black text-white"
-                      : "text-gray-400 hover:text-black hover:bg-gray-100"
-                  }`}
-                  title={`ELO ${p.elo}`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <EloSelect value={assistiveElo} onChange={setAssistiveElo} />
 
           <div className="flex items-center justify-between">
             <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">

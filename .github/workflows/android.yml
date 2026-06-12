@@ -11,7 +11,8 @@ name: Android APK
 
 on:
   push:
-    tags: ["v*"]
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       ref:
@@ -143,11 +144,19 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          BUILD_FLAG=""
+          # Determine build mode: debug is the safe default when signing
+          # secrets haven't been configured yet.
+          MODE=""
+          HAS_SIGNING="${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}"
+
           if [ "${{ inputs.build_type }}" = "debug" ]; then
-            BUILD_FLAG="--debug"
+            MODE="--debug"
+          elif [ "$HAS_SIGNING" != "true" ]; then
+            echo "No signing keystore configured — falling back to debug build"
+            MODE="--debug"
           fi
-          npx tauri android build --apk $BUILD_FLAG
+
+          npx tauri android build --apk $MODE
 
       # ── Upload artifacts ──────────────────────────────────────────────
       - name: Upload APK artifact

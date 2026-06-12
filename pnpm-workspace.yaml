@@ -1,2 +1,6 @@
+# The npm `stockfish` package's build script is not needed: the app runs the
+# vendored engine at public/stockfish-engine.js via a Web Worker and never
+# imports the package. Skipping its build keeps `pnpm <script>` from failing
+# with ERR_PNPM_IGNORED_BUILDS.
 allowBuilds:
-  stockfish: set this to true or false
+  stockfish: false

@@ -171,7 +171,9 @@ export function useAssistiveMode(
         tone: exp.tone,
         text: exp.text,
         cpLoss: ctx.cpLoss,
-        nag: ctx.nag,
+        // Opening theory isn't the player's call — don't pin a NAG on book moves,
+        // matching how the game report excludes book plies from scoring.
+        nag: ctx.isBookMove ? null : ctx.nag,
         bestUci: before.bestUci,
         bestSan: ctx.bestSan,
       })

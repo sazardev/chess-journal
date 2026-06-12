@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useGameStore, START_FEN } from "../stores/useGameStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
+import { useConfigStore } from "../stores/useConfigStore"
 import { useAiStore } from "../stores/useAiStore"
 import { useAiCacheStore, gameCacheKey } from "../stores/useAiCacheStore"
 import { useOpeningStore } from "../stores/useOpeningStore"
@@ -22,6 +23,8 @@ export default function GameReport({ onClose }: Props) {
   const goToMove = useGameStore((s) => s.goToMove)
   const byFen = useAnalysisStore((s) => s.byFen)
   const current = useOpeningStore((s) => s.current)
+  const assistiveMode = useConfigStore((s) => s.assistiveMode)
+  const assistiveColor = useConfigStore((s) => s.assistiveColor)
 
   // Opening theory shouldn't count against the player. Custom start positions
   // have no book.
@@ -36,6 +39,9 @@ export default function GameReport({ onClose }: Props) {
     () => buildGameReport(history, byFen, { bookPlies }),
     [history, byFen, bookPlies],
   )
+
+  // In assistive mode the report is "your game" — surface the player's side first.
+  const playerSide = assistiveColor === "white" ? report.white : report.black
 
   const openingName = startFen === START_FEN ? (current?.name ?? null) : null
   const explainer = useExplainer()
@@ -138,6 +144,42 @@ export default function GameReport({ onClose }: Props) {
             </p>
           ) : (
             <>
+              {assistiveMode && playerSide.scored > 0 && (
+                <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-gray-400">
+                      Your performance — {assistiveColor === "white" ? "White" : "Black"}
+                    </span>
+                    {playerSide.estimatedElo && (
+                      <span className="font-mono text-[9px] tabular-nums text-gray-500">
+                        {playerSide.estimatedElo.band}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1.5 flex items-baseline gap-4">
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-mono text-[18px] font-medium tabular-nums text-black">
+                        {playerSide.accuracy.toFixed(0)}%
+                      </span>
+                      <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+                        accuracy
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 font-mono text-[9px] text-gray-500">
+                      <span>
+                        <span className="font-bold" style={{ color: "#dc2626" }}>{playerSide.blunders}</span> blunders
+                      </span>
+                      <span>
+                        <span className="font-bold" style={{ color: "#ea580c" }}>{playerSide.mistakes}</span> mistakes
+                      </span>
+                      <span>
+                        <span className="font-bold" style={{ color: "#a3a3a3" }}>{playerSide.inaccuracies}</span> inacc.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {(summary || streaming) && (
                 <p className="border-b border-gray-100 px-4 py-3 font-mono text-[10px] leading-relaxed text-black">
                   {summary}

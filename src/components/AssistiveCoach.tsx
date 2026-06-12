@@ -1,9 +1,11 @@
 import { useMemo } from "react"
-import { useGameStore } from "../stores/useGameStore"
+import { useGameStore, START_FEN } from "../stores/useGameStore"
+import { useAnalysisStore } from "../stores/useAnalysisStore"
+import { useConfigStore } from "../stores/useConfigStore"
 import { useAssistiveStore } from "../stores/useAssistiveStore"
 import { useOpeningStore } from "../stores/useOpeningStore"
 import { nagColor, type Nag } from "../lib/moveQuality"
-import { summarize } from "../lib/assistiveStats"
+import { buildGameReport } from "../lib/gameReport"
 import type { ExplainTone } from "../lib/explain"
 import type { AssistiveFeedback } from "../stores/useAssistiveStore"
 
@@ -39,10 +41,30 @@ export default function AssistiveCoach() {
   const engineThinking = useAssistiveStore((s) => s.engineThinking)
 
   const goToMove = useGameStore((s) => s.goToMove)
-  const openingName = useOpeningStore((s) => s.current?.name ?? null)
+  const history = useGameStore((s) => s.fullHistory)
+  const startFen = useGameStore((s) => s.startFen)
+  const byFen = useAnalysisStore((s) => s.byFen)
+  const assistiveColor = useConfigStore((s) => s.assistiveColor)
+  const current = useOpeningStore((s) => s.current)
+  const openingName = current?.name ?? null
 
   const fb = lastPlayerPly != null ? feedbackByPly[lastPlayerPly] : undefined
-  const summary = useMemo(() => summarize(feedbackByPly), [feedbackByPly])
+
+  // Performance for the player's side — derived from the SAME engine scan and
+  // Lichess accuracy curves the Game report uses, so the two never disagree.
+  const bookPlies = startFen !== START_FEN ? 0 : current?.lastBookPly ?? 0
+  const report = useMemo(
+    () => buildGameReport(history, byFen, { bookPlies }),
+    [history, byFen, bookPlies],
+  )
+  const side = assistiveColor === "white" ? report.white : report.black
+
+  // NAG tallies for the player's own moves (the good marks aren't in SideReport).
+  const counts = useMemo(() => {
+    const c: Record<Nag, number> = { "!!": 0, "!": 0, "?!": 0, "?": 0, "??": 0 }
+    for (const f of Object.values(feedbackByPly)) if (f.nag) c[f.nag]++
+    return c
+  }, [feedbackByPly])
 
   const color = fb ? toneColor(fb.tone) : "#6b7280"
   const showAlternative = !!fb?.bestSan && fb.cpLoss > 30 && fb.tone !== "book"
@@ -130,23 +152,25 @@ export default function AssistiveCoach() {
         </p>
       )}
 
-      {/* Per-game performance */}
-      {summary.moves > 0 && (
+      {/* Per-game performance — same source as the Game report */}
+      {side.scored > 0 && (
         <div className="mt-0.5 flex items-center justify-between border-t border-gray-100 pt-1.5">
           <div className="flex items-baseline gap-1">
             <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
               Accuracy
             </span>
             <span className="font-mono text-[11px] font-medium tabular-nums text-gray-800">
-              {summary.accuracy.toFixed(0)}%
+              {side.accuracy.toFixed(0)}%
             </span>
-            <span className="font-mono text-[8px] tabular-nums text-gray-400">
-              ~{summary.perfRating}
-            </span>
+            {side.estimatedElo && (
+              <span className="font-mono text-[8px] tabular-nums text-gray-400">
+                {side.estimatedElo.band}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             {NAG_ORDER.map((n) =>
-              summary.counts[n] > 0 ? (
+              counts[n] > 0 ? (
                 <span key={n} className="flex items-center gap-0.5">
                   <span
                     className="font-mono text-[10px] font-bold leading-none"
@@ -155,7 +179,7 @@ export default function AssistiveCoach() {
                     {n}
                   </span>
                   <span className="font-mono text-[9px] tabular-nums text-gray-400">
-                    {summary.counts[n]}
+                    {counts[n]}
                   </span>
                 </span>
               ) : null,

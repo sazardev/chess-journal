@@ -1,6 +1,6 @@
 [package]
 name = "chess-journal"
-version = "0.1.17"
+version = "0.1.18"
 description = "Your gamebook for chess"
 authors = ["sazardev"]
 license = "MIT"

@@ -4,6 +4,8 @@ import type { Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { usePuzzleStore } from "../stores/usePuzzleStore"
+import { useConfigStore } from "../stores/useConfigStore"
+import { useAssistiveStore } from "../stores/useAssistiveStore"
 import { useTouch } from "../hooks/useTouch"
 import EvalBar from "./EvalBar"
 import { computeHeatmap } from "../lib/heatmap"
@@ -33,6 +35,28 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
   const fen = puzzleActive ? puzzleFen : gameFen
   const orientation = puzzleActive ? puzzleOrientation : gameOrientation
   const showEngine = engineOn && !puzzleActive
+
+  const assistiveMode = useConfigStore((s) => s.assistiveMode)
+  const assistiveColor = useConfigStore((s) => s.assistiveColor)
+  const moveBlocked =
+    assistiveMode &&
+    !puzzleActive &&
+    fen.split(" ")[1] !== assistiveColor[0]
+
+  const feedbackByPly = useAssistiveStore((s) => s.feedbackByPly)
+  const historyIndex = useGameStore((s) => s.historyIndex)
+  const historyLen = useGameStore((s) => s.fullHistory.length)
+
+  // Gray "better move" hint for the position currently shown. The best move for a
+  // ply was searched on the position *before* that move, so its squares line up
+  // only on that pre-move position: when reviewing, that's `feedbackByPly[historyIndex]`
+  // (the move you played from here). Live, right after you move, the board has
+  // advanced one ply — fall back to the move that just led here for a ghost cue.
+  const atEnd = historyIndex >= historyLen
+  const hint = assistiveMode
+    ? feedbackByPly[historyIndex] ?? (atEnd ? feedbackByPly[historyIndex - 1] : undefined)
+    : undefined
+  const showGrayHint = !!hint?.bestUci && hint.cpLoss > 30 && hint.tone !== "book"
 
   const selectedSquare = useBoardStore((s) => s.selectedSquare)
   const selectSquare = useBoardStore((s) => s.selectSquare)
@@ -94,28 +118,31 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
     [visualMode, candidates, puzzleActive],
   )
 
-  const boardArrows = useMemo(
-    () =>
-      puzzleActive
-        ? []
-        : [
-            ...arrows.map((a) => ({
-              startSquare: a.from,
-              endSquare: a.to,
-              color: a.color,
-            })),
-            ...heat.arrows,
-          ],
-    [arrows, heat, puzzleActive],
-  )
+  const boardArrows = useMemo(() => {
+    if (puzzleActive) return []
+    const result = [
+      ...arrows.map((a) => ({ startSquare: a.from, endSquare: a.to, color: a.color })),
+      ...heat.arrows,
+    ]
+    // Gray arrow for the best alternative on the move that produced this position.
+    if (showGrayHint && hint?.bestUci) {
+      const from = hint.bestUci.slice(0, 2)
+      const to = hint.bestUci.slice(2, 4)
+      if (from.length === 2 && to.length >= 2) {
+        result.push({ startSquare: from, endSquare: to, color: "rgba(140,140,140,0.72)" })
+      }
+    }
+    return result
+  }, [arrows, heat, puzzleActive, showGrayHint, hint])
 
   const onPieceDrop = useCallback(
     (args: { piece: unknown; sourceSquare: string; targetSquare: string | null }) => {
       if (!args.targetSquare) return false
+      if (moveBlocked) return false
       if (puzzleActive) return attemptMove(args.sourceSquare as Square, args.targetSquare as Square)
       return makeMove(args.sourceSquare as Square, args.targetSquare as Square)
     },
-    [makeMove, puzzleActive, attemptMove],
+    [makeMove, puzzleActive, attemptMove, moveBlocked],
   )
 
   const onSquareClick = useCallback(
@@ -131,6 +158,8 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
         }
         return
       }
+
+      if (moveBlocked) return
 
       if (annotationMode === "highlight") {
         highlightSquare(square, TEXT)
@@ -157,7 +186,7 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
         }
       }
     },
-    [selectedSquare, annotationMode, makeMove, selectSquare, addArrow, highlightSquare, puzzleActive, attemptMove],
+    [selectedSquare, annotationMode, makeMove, selectSquare, addArrow, highlightSquare, puzzleActive, attemptMove, moveBlocked],
   )
 
   const squareStyles = useMemo(() => {
@@ -166,6 +195,14 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
     // Heatmap underlay (analyzer) — user marks and selection paint over it.
     for (const [square, style] of Object.entries(heat.squareStyles)) {
       styles[square] = { ...style }
+    }
+
+    // Gray square highlights for the best-alternative move on the shown position.
+    if (showGrayHint && hint?.bestUci) {
+      const from = hint.bestUci.slice(0, 2)
+      const to = hint.bestUci.slice(2, 4)
+      if (from.length === 2) styles[from] = { backgroundColor: "rgba(130,130,130,0.18)" }
+      if (to.length >= 2)   styles[to]   = { backgroundColor: "rgba(130,130,130,0.30)" }
     }
 
     // User annotations don't belong to a puzzle position.
@@ -193,7 +230,7 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
     }
 
     return styles
-  }, [highlights, selectedSquare, heat, puzzleActive, feedback, feedbackSquare])
+  }, [highlights, selectedSquare, heat, puzzleActive, feedback, feedbackSquare, showGrayHint, hint])
 
   // In-board coordinates (mobile only) — monochrome, tucked into the square
   // corners. Two colors so they read on both the white and gray squares.
@@ -208,7 +245,7 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
     id: "chess-journal",
     position: fen,
     boardOrientation: orientation,
-    allowDragging: true,
+    allowDragging: !moveBlocked,
     allowDrawingArrows: false,
     arrows: boardArrows,
     squareStyles,
@@ -258,8 +295,18 @@ export default function Board({ engine }: { engine: ReturnType<typeof useEngine>
           </div>
         )}
 
-        <div style={{ width: boardSize, height: boardSize }}>
+        <div style={{ width: boardSize, height: boardSize, position: "relative" }}>
           <Chessboard options={options} />
+          {moveBlocked && (
+            <div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+            >
+              <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-gray-400 bg-white/80 px-3 py-1.5 rounded">
+                Engine turn
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo, useCallback, type RefObject } from "react"
 import { Chess, type Square } from "chess.js"
 import { useGameStore } from "../stores/useGameStore"
+import { useConfigStore } from "../stores/useConfigStore"
 import { candidateColor } from "../lib/heatmap"
 import type { Candidate, useEngine } from "../hooks/useEngine"
 
@@ -24,6 +25,13 @@ export default function MoveInput({ inputRef, engine }: Props) {
   const fen = useGameStore((s) => s.fen)
   const turn = useGameStore((s) => s.turn)
   const isGameOver = useGameStore((s) => s.isGameOver)
+
+  const assistiveMode = useConfigStore((s) => s.assistiveMode)
+  const assistiveColor = useConfigStore((s) => s.assistiveColor)
+  const assistiveBlocked =
+    assistiveMode &&
+    fen.split(" ")[1] !== assistiveColor[0]
+  const inputDisabled = isGameOver || assistiveBlocked
 
   const analyzerOn = engine?.enabled ?? false
   const candidates = engine?.candidates ?? NO_CANDIDATES
@@ -195,8 +203,8 @@ export default function MoveInput({ inputRef, engine }: Props) {
           onKeyDown={handleKeyDown}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          disabled={isGameOver}
-          placeholder="e4, Nf3, O-O…  (Tab to complete)"
+          disabled={inputDisabled}
+          placeholder={assistiveBlocked ? "Engine thinking…" : "e4, Nf3, O-O…  (Tab to complete)"}
           className="flex-1 bg-transparent font-mono text-sm outline-none placeholder:text-gray-300 disabled:opacity-30 text-black min-w-0 py-1"
           spellCheck={false}
           autoComplete="off"
@@ -206,7 +214,7 @@ export default function MoveInput({ inputRef, engine }: Props) {
             const san = value.trim()
             if (san) play(san)
           }}
-          disabled={isGameOver}
+          disabled={inputDisabled}
           className="font-mono text-[10px] uppercase tracking-widest text-gray-400 hover:text-black transition-colors disabled:opacity-30 shrink-0 py-1"
         >
           Play

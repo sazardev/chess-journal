@@ -1,0 +1,9 @@
+Quisiera implementar un modo asistente, este mood asiste busco que sea literalmente jugar contra la computadora bajo el engine y prediccion de movimientos, con un elo trazado y tambien basado en el engine aprovecharlo, pero el modo asistente seria muy especial, pues aprovechamos todo el engine, predicciones, se peude usar el modo marcas, donde podemos mostrar visualmente las sugerencias a mover al usaurio, es un modo que busca que la IA mueve su peiza, luego tu mueves y la IA + engine + preddiccion + apoyo visual ve lo que hcisite y te deja un comentario si fue acertao, tambien te da opciones, opiona de tu apertura, de tu movimiento de bibliteca de juegos, trazabilidad, preddccion, et,c algo ultra mega inteligente que te va diciendo eso estuvo bien, es el acertado, ese no, pero no solo sea un si o no, si no dar el porque, y brindar opciones, aprovechar al maximo lo quie tenemos, y seria un boton mas, donde esta ANALYZE OFF (u ON) abajo diga ASSISTIVE MODE, yel modo assistive activa todo eso, los mensajes igual saldrian en el historial pero basado en el movimeinto del usuario, el modo assistive pro default activa todo para tener un tracking completo y total de todo lo que haga el usaurio,s e guarda como un jueog mas, no es una seccion aparte ni nada de eso.
+
+---
+
+Quiza el problema es que no se actualiza el estado y lo mueve solo, porque candidate y best line si aparece visualmente sus sugferencias y todo en orden, pero el movimiento de la peiza es lo que no esta haciendo, hasta el apoyo visual del lado del enemigo se activa pero no hace el movimiento de la peiza, creo que es lo que falta hacer.
+
+---
+
+Que sucede detras de aqui? es deicr, ya esta el sistema integrado del modo asistido, pero para nada se mueve las peizas del contrincante cuando hago un movimiento yo, quiza falta detectar adecuadamente que cuando detecte que yo mueve pase al siguiente.

@@ -7,6 +7,7 @@ import MoveHistory from "./components/MoveHistory"
 import ControlBar from "./components/ControlBar"
 import GameReport from "./components/GameReport"
 import MoveInput from "./components/MoveInput"
+import AssistiveCoach from "./components/AssistiveCoach"
 import Library from "./components/Library"
 import SettingsPanel from "./components/SettingsPanel"
 import ShortcutsOverlay from "./components/ShortcutsOverlay"
@@ -20,6 +21,7 @@ import { useAutoplay } from "./hooks/useAutoplay"
 import { useAutosave } from "./hooks/useAutosave"
 import { useEngine } from "./hooks/useEngine"
 import { useGameAnalyzer } from "./hooks/useGameAnalyzer"
+import { useAssistiveMode } from "./hooks/useAssistiveMode"
 import { useOpeningDetection } from "./hooks/useOpeningDetection"
 import { useAnalysisCache } from "./hooks/useAnalysisCache"
 import { useTouch } from "./hooks/useTouch"
@@ -70,6 +72,7 @@ export default function App() {
   const configSetLastSeenVersion = useConfigStore((s) => s.setLastSeenVersion)
   const openingAnalyzer = useConfigStore((s) => s.openingAnalyzer)
   const aiCommentary = useConfigStore((s) => s.aiCommentary)
+  const assistiveMode = useConfigStore((s) => s.assistiveMode)
 
   const persistenceInit = usePersistenceStore((s) => s.init)
   const persistenceReady = usePersistenceStore((s) => s.ready)
@@ -93,6 +96,8 @@ export default function App() {
   // Mobile-only full-screen Settings page (bottom nav). Desktop uses modals.
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false)
   const [restored, setRestored] = useState(false)
+
+  useAssistiveMode(engine, () => setReportOpen(true))
 
   const moveInputRef = useRef<HTMLInputElement>(null)
   const restoredRef = useRef(false)
@@ -359,6 +364,7 @@ export default function App() {
             entirely while solving a puzzle or editing a position (no move list there) */}
         {!puzzleActive && !editorActive && (
           <div className={overlayOpenMobile ? "hidden md:block" : ""}>
+            {assistiveMode && <AssistiveCoach />}
             <MoveInput inputRef={moveInputRef} engine={engine} />
           </div>
         )}

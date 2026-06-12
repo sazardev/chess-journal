@@ -18,6 +18,33 @@ export interface Candidate {
   multipv: number
 }
 
+function candidateValue(c: Candidate): number {
+  if (c.mate !== null) return c.mate > 0 ? MATE_BASE : -MATE_BASE
+  return c.score
+}
+
+export function pickAssistiveMove(candidates: Candidate[], elo: number): Candidate | null {
+  if (candidates.length === 0) return null
+  if (candidates.length === 1 || elo >= 2500) return candidates[0]
+
+  const scores = candidates.map((c) => candidateValue(c))
+  const bestScore = scores[0]
+  const deltas = scores.map((s) => Math.max(0, bestScore - s))
+
+  const strength = (elo - 800) / 1700
+  const temperature = Math.max(0.01, (1 - strength) * 2)
+
+  const weights = deltas.map((d) => Math.exp(-d / (temperature * 100 + 1)))
+  const total = weights.reduce((a, b) => a + b, 0)
+
+  let r = Math.random() * total
+  for (let i = 0; i < candidates.length; i++) {
+    r -= weights[i]
+    if (r <= 0) return candidates[i]
+  }
+  return candidates[0]
+}
+
 export function useEngine() {
   const [enabled, setEnabled] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -30,6 +57,7 @@ export function useEngine() {
   const searchingRef = useRef(false)
   const fenRef = useRef("")
   const enabledRef = useRef(enabled)
+  const resetCandidatesRef = useRef(false)
   enabledRef.current = enabled
 
   const currentFen = useGameStore((s) => s.fen)
@@ -72,6 +100,12 @@ export function useEngine() {
       }
 
       if (!line.startsWith("info")) return
+
+      if (resetCandidatesRef.current) {
+        resetCandidatesRef.current = false
+        candidatesDepth = 0
+        candidatesMap.clear()
+      }
 
       const depthMatch = line.match(/depth (\d+)/)
       const cpMatch = line.match(/score cp (-?\d+)/)
@@ -146,6 +180,9 @@ export function useEngine() {
       w.postMessage("position fen " + fenRef.current)
       w.postMessage("go depth " + cfg.depth)
       searchingRef.current = true
+      resetCandidatesRef.current = true
+      setEval({ score: 0, mate: null, depth: 0, bestLine: [] })
+      setCandidates([])
     }, 80)
 
     return () => {

@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from "react"
 import { useGameStore } from "../stores/useGameStore"
+import { useConfigStore } from "../stores/useConfigStore"
 import { useAnalysisStore, posKey } from "../stores/useAnalysisStore"
 import { useAiStore } from "../stores/useAiStore"
 import { useAiCacheStore, moveCacheKey } from "../stores/useAiCacheStore"
@@ -47,6 +48,7 @@ export default function MoveHistory() {
   const setComment = useGameStore((s) => s.setComment)
 
   const markMode = useAnalysisStore((s) => s.markMode)
+  const assistiveMode = useConfigStore((s) => s.assistiveMode)
   const byFen = useAnalysisStore((s) => s.byFen)
   const lastBookPly = useOpeningStore((s) => s.current?.lastBookPly ?? 0)
   const openingName = useOpeningStore((s) => s.current?.name ?? null)
@@ -216,6 +218,27 @@ export default function MoveHistory() {
   // template line is the instant placeholder/fallback.
   const activeText = isLlm && moveComment ? moveComment : (activeExp?.text ?? "")
   const activeTone = activeExp?.tone ?? "neutral"
+
+  // One explanation line under a move. The active move shows the live (possibly
+  // streamed) comment; in assistive mode every graded move shows its breakdown,
+  // prefixed with the SAN so it reads as a per-move log.
+  const expLine = (idx: number, san: string) => {
+    const isActive = activePly === idx
+    const exp = explanations[idx]
+    const text = isActive ? activeText : exp?.text ?? ""
+    const tone = isActive ? activeTone : exp?.tone ?? "neutral"
+    const streaming = isActive && isLlm && moveStreaming
+    if (!text && !streaming) return null
+    return (
+      <div className={`pl-7 md:pl-8 pr-3 pb-1 ${isActive ? "" : "opacity-75"}`}>
+        <span className="block font-mono text-[9px] leading-snug" style={{ color: toneColor(tone) }}>
+          {!isActive && <span className="text-gray-400">{san} </span>}
+          {text}
+          {streaming && <span className="text-gray-300"> ▍</span>}
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col max-h-40 md:h-full md:max-h-none">
@@ -409,18 +432,18 @@ export default function MoveHistory() {
                 )}
               </div>
 
-              {(activePly === whiteIdx || activePly === blackIdx) &&
-                (activeText || (isLlm && moveStreaming)) && (
-                  <div className="pl-7 md:pl-8 pr-3 pb-1">
-                    <span
-                      className="block font-mono text-[9px] leading-snug"
-                      style={{ color: toneColor(activeTone) }}
-                    >
-                      {activeText}
-                      {isLlm && moveStreaming && <span className="text-gray-300"> ▍</span>}
-                    </span>
-                  </div>
-                )}
+              {assistiveMode ? (
+                <>
+                  {expLine(whiteIdx, pair.white!.san)}
+                  {pair.black && expLine(blackIdx, pair.black.san)}
+                </>
+              ) : (
+                (activePly === whiteIdx || activePly === blackIdx) &&
+                expLine(
+                  activePly,
+                  activePly === whiteIdx ? pair.white!.san : pair.black?.san ?? "",
+                )
+              )}
 
               {editingComment === whiteIdx && (
                 <div className="flex items-center gap-1 pl-7 md:pl-8 pr-3 py-1">

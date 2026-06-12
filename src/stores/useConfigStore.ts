@@ -36,10 +36,21 @@ export function resolveEngineConfig(preset: EnginePresetId): EngineConfig {
   }
 }
 
+export type AssistiveColor = "white" | "black"
+
 export interface AppConfig {
   orientation: Orientation
   playSpeed: number
 }
+
+export const ASSISTIVE_ELO_PRESETS = [
+  { elo: 800, label: "Beginner" },
+  { elo: 1200, label: "Casual" },
+  { elo: 1500, label: "Club" },
+  { elo: 1800, label: "Expert" },
+  { elo: 2100, label: "Master" },
+  { elo: 2500, label: "GM" },
+] as const
 
 interface ConfigState extends AppConfig {
   loaded: boolean
@@ -49,6 +60,9 @@ interface ConfigState extends AppConfig {
   theme: ThemeMode
   aiCommentary: boolean
   engineConfig: EngineConfig
+  assistiveMode: boolean
+  assistiveElo: number
+  assistiveColor: AssistiveColor
   init: () => Promise<void>
   setOrientation: (orientation: Orientation) => void
   setPlaySpeed: (ms: number) => void
@@ -58,6 +72,9 @@ interface ConfigState extends AppConfig {
   setTheme: (mode: ThemeMode) => void
   setAiCommentary: (on: boolean) => void
   setEnginePreset: (preset: EnginePresetId) => void
+  setAssistiveMode: (on: boolean) => void
+  setAssistiveElo: (elo: number) => void
+  setAssistiveColor: (color: AssistiveColor) => void
 }
 
 export const useConfigStore = create<ConfigState>((set) => {
@@ -79,6 +96,9 @@ export const useConfigStore = create<ConfigState>((set) => {
     sound: true,
     theme: "system",
     aiCommentary: false,
+    assistiveMode: false,
+    assistiveElo: 1500,
+    assistiveColor: "white" as AssistiveColor,
     engineConfig: resolveEngineConfig("balanced"),
 
     init: async () => {
@@ -92,9 +112,12 @@ export const useConfigStore = create<ConfigState>((set) => {
       const aiCommentary = (await st.get<boolean>("aiCommentary")) ?? false
       const enginePreset = (await st.get<EnginePresetId>("enginePreset")) ?? "balanced"
       const engineConfig = resolveEngineConfig(enginePreset)
+      const assistiveMode = (await st.get<boolean>("assistiveMode")) ?? false
+      const assistiveElo = (await st.get<number>("assistiveElo")) ?? 1500
+      const assistiveColor = (await st.get<AssistiveColor>("assistiveColor")) ?? "white"
       setSoundEnabled(sound)
       applyTheme(theme)
-      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, sound, theme, aiCommentary, engineConfig, loaded: true })
+      set({ orientation, playSpeed, lastSeenVersion, openingAnalyzer, sound, theme, aiCommentary, engineConfig, assistiveMode, assistiveElo, assistiveColor, loaded: true })
     },
 
     setOrientation: async (orientation) => {
@@ -146,6 +169,24 @@ export const useConfigStore = create<ConfigState>((set) => {
       set({ engineConfig })
       const st = await ensureStorage()
       await st.set("enginePreset", preset)
+    },
+
+    setAssistiveMode: async (assistiveMode) => {
+      set({ assistiveMode })
+      const st = await ensureStorage()
+      await st.set("assistiveMode", assistiveMode)
+    },
+
+    setAssistiveElo: async (assistiveElo) => {
+      set({ assistiveElo })
+      const st = await ensureStorage()
+      await st.set("assistiveElo", assistiveElo)
+    },
+
+    setAssistiveColor: async (assistiveColor) => {
+      set({ assistiveColor })
+      const st = await ensureStorage()
+      await st.set("assistiveColor", assistiveColor)
     },
   }
 })

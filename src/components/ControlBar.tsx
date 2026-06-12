@@ -5,7 +5,8 @@ import { useGameStore } from "../stores/useGameStore"
 import { useBoardStore } from "../stores/useBoardStore"
 import { useMetaStore } from "../stores/useMetaStore"
 import { useAnalysisStore } from "../stores/useAnalysisStore"
-import { useConfigStore, ENGINE_PRESETS, type EnginePresetId } from "../stores/useConfigStore"
+import { useConfigStore, ENGINE_PRESETS, type EnginePresetId, ASSISTIVE_ELO_PRESETS } from "../stores/useConfigStore"
+import { useAssistiveStore } from "../stores/useAssistiveStore"
 import { buildSaveData, openEditor } from "../lib/session"
 import { candidateColor } from "../lib/heatmap"
 import { uciToSan, uciToSanList } from "../lib/uci"
@@ -40,6 +41,15 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
   const setOpeningAnalyzer = useConfigStore((s) => s.setOpeningAnalyzer)
   const enginePreset = useConfigStore((s) => s.engineConfig.preset)
   const setEnginePreset = useConfigStore((s) => s.setEnginePreset)
+
+  const assistiveMode = useConfigStore((s) => s.assistiveMode)
+  const setAssistiveMode = useConfigStore((s) => s.setAssistiveMode)
+  const assistiveElo = useConfigStore((s) => s.assistiveElo)
+  const setAssistiveElo = useConfigStore((s) => s.setAssistiveElo)
+  const assistiveColor = useConfigStore((s) => s.assistiveColor)
+  const setAssistiveColor = useConfigStore((s) => s.setAssistiveColor)
+  const assistiveTurn = useAssistiveStore((s) => s.turn)
+  const engineThinking = useAssistiveStore((s) => s.engineThinking)
 
   const fen = useGameStore((s) => s.fen)
   const moveCount = useGameStore((s) => s.fullHistory.length)
@@ -203,7 +213,87 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
         Edit position
       </button>
 
-      {engineOn && (
+      <button
+        onClick={() => setAssistiveMode(!assistiveMode)}
+        className={`font-mono text-[10px] md:text-[9px] uppercase tracking-[0.15em] py-2 md:py-1.5 transition-colors ${
+          assistiveMode
+            ? "bg-black text-white"
+            : "text-gray-400 hover:text-black hover:bg-gray-100"
+        }`}
+      >
+        {assistiveMode ? "Assistive On" : "Assistive Mode"}
+      </button>
+
+      {assistiveMode && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+              Player
+            </span>
+            <div className="flex gap-0.5">
+              <button
+                onClick={() => setAssistiveColor("white")}
+                className={`font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1 transition-colors ${
+                  assistiveColor === "white"
+                    ? "bg-black text-white"
+                    : "text-gray-400 hover:text-black hover:bg-gray-100"
+                }`}
+              >
+                White
+              </button>
+              <button
+                onClick={() => setAssistiveColor("black")}
+                className={`font-mono text-[9px] uppercase tracking-[0.08em] px-2 py-1 transition-colors ${
+                  assistiveColor === "black"
+                    ? "bg-black text-white"
+                    : "text-gray-400 hover:text-black hover:bg-gray-100"
+                }`}
+              >
+                Black
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+              ELO
+            </span>
+            <div className="flex gap-0.5">
+              {ASSISTIVE_ELO_PRESETS.map((p) => (
+                <button
+                  key={p.elo}
+                  onClick={() => setAssistiveElo(p.elo)}
+                  className={`font-mono text-[9px] uppercase tracking-[0.08em] px-1.5 py-1 transition-colors ${
+                    assistiveElo === p.elo
+                      ? "bg-black text-white"
+                      : "text-gray-400 hover:text-black hover:bg-gray-100"
+                  }`}
+                  title={`ELO ${p.elo}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+              Status
+            </span>
+            <span className="font-mono text-[9px] tabular-nums text-gray-600">
+              {engineThinking
+                ? "Thinking..."
+                : assistiveTurn === "engine"
+                  ? "Engine turn"
+                  : assistiveTurn === "player"
+                    ? "Your turn"
+                    : "Ready"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {engineOn && !assistiveMode && (
         <button
           onClick={toggleVisual}
           className={`font-mono text-[10px] md:text-[9px] uppercase tracking-[0.15em] py-2 md:py-1.5 transition-colors ${
@@ -216,7 +306,7 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
         </button>
       )}
 
-      {engineOn && (
+      {engineOn && !assistiveMode && (
         <div className="flex flex-col gap-1">
           <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
             Preset
@@ -239,7 +329,7 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
         </div>
       )}
 
-      {engineOn && eval_.depth > 0 && (
+      {engineOn && !assistiveMode && eval_.depth > 0 && (
         <div className="flex items-center justify-between">
           <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
             Engine
@@ -250,7 +340,7 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
         </div>
       )}
 
-      {engineOn && moveCount > 0 && (
+      {engineOn && !assistiveMode && moveCount > 0 && (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
@@ -302,7 +392,7 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
         </div>
       )}
 
-      {engineOn && sanLine.length > 0 && (
+      {engineOn && !assistiveMode && sanLine.length > 0 && (
         <div className="flex flex-col gap-1">
           <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
             Best line
@@ -322,7 +412,7 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
         </div>
       )}
 
-      {engineOn && visualMode && sanCandidates.length > 0 && (
+      {engineOn && !assistiveMode && visualMode && sanCandidates.length > 0 && (
         <div className="flex flex-col gap-1">
           <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
             Candidates
@@ -375,6 +465,44 @@ export default function ControlBar({ engine, analyzer, onOpenReport }: ControlBa
 
         {advancedOpen && (
           <div className="mt-2 flex flex-col gap-3 border-t border-gray-100 pt-3">
+            {/* Manual engine controls — surfaced here while assistive hides them up top */}
+            {assistiveMode && engineOn && (
+              <div className="flex flex-col gap-1.5">
+                <span className="font-mono text-[8px] uppercase tracking-[0.1em] text-gray-400">
+                  Engine (manual)
+                </span>
+                <div className="flex gap-0.5">
+                  {(Object.keys(ENGINE_PRESETS) as EnginePresetId[]).map((id) => (
+                    <button
+                      key={id}
+                      onClick={() => setEnginePreset(id)}
+                      className={`flex-1 font-mono text-[10px] md:text-[9px] uppercase tracking-[0.1em] py-2 md:py-1.5 transition-colors ${
+                        id === enginePreset
+                          ? "bg-black text-white"
+                          : "text-gray-400 hover:text-black hover:bg-gray-100"
+                      }`}
+                    >
+                      {ENGINE_PRESETS[id].label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1.5 md:gap-1">
+                  <button onClick={toggleVisual} className={`flex-1 ${advBtn} ${visualMode ? "text-black" : ""}`}>
+                    Visual {visualMode ? "On" : "Off"}
+                  </button>
+                  <button
+                    onClick={analyzing ? cancelAnalysis : runAnalysis}
+                    className={`flex-1 ${advBtn} ${analyzing ? "text-black" : ""}`}
+                  >
+                    {analyzing ? `Stop ${done}/${total}` : "Analyze game"}
+                  </button>
+                  <button onClick={onOpenReport} className={`flex-1 ${advBtn}`}>
+                    Report
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Game metadata — rating, tags, notes (auto-saved) */}
             <MetaEditor embedded />
 

@@ -26,6 +26,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 # Never run two releases at once.
 concurrency:

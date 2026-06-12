@@ -4,6 +4,7 @@ import { useGameStore } from "../stores/useGameStore"
 import { useAnalysisStore, posKey } from "../stores/useAnalysisStore"
 import { useConfigStore } from "../stores/useConfigStore"
 import { useAssistiveStore } from "../stores/useAssistiveStore"
+import { useAiStore } from "../stores/useAiStore"
 import { useOpeningStore } from "../stores/useOpeningStore"
 import { pickAssistiveMove } from "./useEngine"
 import type { useEngine } from "./useEngine"
@@ -39,13 +40,20 @@ export function useAssistiveMode(
   const initializedRef = useRef(false)
   const prevLenRef = useRef(0)
 
-  // Initialize assistive mode: turn on engine, marks, visual.
+  // Initialize assistive mode: turn on engine, marks, visual, and AI commentary.
   useEffect(() => {
     if (assistiveMode && !initializedRef.current) {
       initializedRef.current = true
       if (!engineOn) toggleEngine()
       setMark(true)
       if (!visualMode) toggleVisual()
+
+      // Auto-enable AI commentary when not unsupported/already running.
+      const ai = useAiStore.getState()
+      if (ai.phase !== "unsupported" && ai.phase !== "ready" && ai.phase !== "preparing") {
+        useConfigStore.getState().setAiCommentary(true)
+        void ai.enable()
+      }
     }
     if (!assistiveMode) {
       initializedRef.current = false

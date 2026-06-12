@@ -4,6 +4,7 @@ import { useAnalysisStore } from "../stores/useAnalysisStore"
 import { useConfigStore } from "../stores/useConfigStore"
 import { useAssistiveStore } from "../stores/useAssistiveStore"
 import { useOpeningStore } from "../stores/useOpeningStore"
+import { useAiStore } from "../stores/useAiStore"
 import { nagColor, type Nag } from "../lib/moveQuality"
 import { buildGameReport } from "../lib/gameReport"
 import type { ExplainTone } from "../lib/explain"
@@ -66,6 +67,10 @@ export default function AssistiveCoach() {
     return c
   }, [feedbackByPly])
 
+  const aiPhase = useAiStore((s) => s.phase)
+  const aiStep = useAiStore((s) => s.step)
+  const aiProgress = useAiStore((s) => s.progress)
+
   const color = fb ? toneColor(fb.tone) : "#6b7280"
   const showAlternative = !!fb?.bestSan && fb.cpLoss > 30 && fb.tone !== "book"
 
@@ -91,6 +96,28 @@ export default function AssistiveCoach() {
           {status}
         </span>
       </div>
+
+      {/* AI loading / error notice */}
+      {aiPhase === "preparing" && (
+        <div className="flex flex-col gap-0.5">
+          <span className="font-mono text-[9px] text-gray-400">
+            {aiStep || "Setting up AI coach…"}
+          </span>
+          {aiProgress > 0 && (
+            <div className="h-0.5 w-full overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-0.5 bg-gray-400 transition-all duration-300"
+                style={{ width: `${Math.round(aiProgress * 100)}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+      {aiPhase === "error" && (
+        <span className="font-mono text-[9px] text-red-400">
+          AI setup failed — toggle AI off and on to retry.
+        </span>
+      )}
 
       {/* Live move grade */}
       {fb ? (

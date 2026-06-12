@@ -40,6 +40,8 @@ import { useEditorStore } from "./stores/useEditorStore"
 import { useAiStore } from "./stores/useAiStore"
 import { useAiCacheStore } from "./stores/useAiCacheStore"
 import { useAnalysisCacheStore } from "./stores/useAnalysisCacheStore"
+import { useChesscomStore } from "./stores/useChesscomStore"
+import { useChesscomAutoFetch } from "./hooks/useChesscomAutoFetch"
 import { initTauriGate } from "./lib/tauriGate"
 import { newGame, saveNow, toggleCurrentFavorite } from "./lib/session"
 import type { Square } from "chess.js"
@@ -102,6 +104,7 @@ export default function App() {
       useAiStore.getState().init().catch(() => {})
       useAiCacheStore.getState().init().catch(() => {})
       useAnalysisCacheStore.getState().init().catch(() => {})
+      useChesscomStore.getState().init().catch(() => {})
       // Silent check on launch — surfaces a dot on the version chip if newer.
       useUpdateStore.getState().check(true).catch(() => {})
     })
@@ -165,6 +168,7 @@ export default function App() {
   useAutosave(restored && persistenceReady)
   useOpeningDetection(configLoaded && openingAnalyzer)
   useAnalysisCache()
+  useChesscomAutoFetch(useChesscomStore((s) => s.loaded) && persistenceReady)
 
   // AI commentary is a single switch: when on, set it up and start it
   // automatically (no manual "start"); when off, stop the engine.

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { SaveData } from "../types/save"
 import { useLibraryStore } from "../stores/useLibraryStore"
+import { useChesscomStore } from "../stores/useChesscomStore"
 import { fetchArchives, getAvailableMonths, importGames, type ArchiveInfo, type ImportProgress } from "../lib/chesscom"
 
 interface Props {
@@ -26,6 +27,9 @@ function monthNum(n: number): string {
 }
 
 export default function ChesscomImport({ onClose }: Props) {
+  const savedUsers = useChesscomStore((s) => s.savedUsers)
+  const toggleAutoFetch = useChesscomStore((s) => s.toggleAutoFetch)
+  const removeUser = useChesscomStore((s) => s.removeUser)
   const [username, setUsername] = useState("")
   const [fromMonth, setFromMonth] = useState(1)
   const [fromYear, setFromYear] = useState(CURRENT_YEAR)
@@ -97,6 +101,9 @@ export default function ChesscomImport({ onClose }: Props) {
         (p) => setProgress({ ...p }),
       )
       setResult(res)
+      if (res.imported > 0) {
+        void useChesscomStore.getState().addUser(trimmed)
+      }
       setPhase("done")
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed")
@@ -109,6 +116,31 @@ export default function ChesscomImport({ onClose }: Props) {
     setPhase("done")
     setResult((r) => r ?? { imported: 0, errors: 0 })
   }, [abortRef])
+
+  const handleChipClick = useCallback(async (user: string) => {
+    setUsername(user)
+    setError("")
+    setPhase("loading")
+    try {
+      const all = await fetchArchives(user)
+      setArchives(all)
+      if (all.length === 0) {
+        setError("No games found for this player")
+        setPhase("idle")
+        return
+      }
+      const oldest = all[all.length - 1]
+      const newest = all[0]
+      setFromYear(oldest.year)
+      setFromMonth(oldest.month)
+      setToYear(newest.year)
+      setToMonth(newest.month)
+      setPhase("preview")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to fetch archives")
+      setPhase("idle")
+    }
+  }, [])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -127,6 +159,45 @@ export default function ChesscomImport({ onClose }: Props) {
       {error && (
         <div className="px-3 pb-1">
           <p className="font-mono text-[9px] text-red-500">{error}</p>
+        </div>
+      )}
+
+      {savedUsers.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1 px-3 pb-1.5">
+          {savedUsers.map((u) => (
+            <div
+              key={u.username}
+              className="flex items-center gap-0.5 bg-gray-50 px-1.5 py-0.5"
+            >
+              <button
+                onClick={() => handleChipClick(u.username)}
+                className="font-mono text-[9px] text-black hover:text-gray-500 transition-colors"
+              >
+                {u.username}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void toggleAutoFetch(u.username)
+                }}
+                title={u.autoFetch ? "Auto-fetch on" : "Auto-fetch off"}
+                className={`font-mono text-[10px] leading-none px-0.5 transition-colors ${
+                  u.autoFetch ? "text-black" : "text-gray-300 hover:text-gray-400"
+                }`}
+              >
+                ↻
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void removeUser(u.username)
+                }}
+                className="font-mono text-[10px] text-gray-300 hover:text-black transition-colors px-0.5"
+              >
+                ×
+              </button>
+            </div>
+          ))}
         </div>
       )}
 

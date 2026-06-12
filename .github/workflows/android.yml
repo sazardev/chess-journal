@@ -169,7 +169,9 @@ jobs:
       # Attach APK to the GitHub Release.  On tag push the release may not
       # exist yet (desktop build still running), so we retry with a back-off.
       - name: Attach APK to GitHub Release
-        if: github.event_name == 'push'
+        if: >-
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' && inputs.ref != '')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -182,7 +184,12 @@ jobs:
             exit 1
           fi
 
-          TAG="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="${{ inputs.ref }}"
+          fi
+          TAG="${TAG#refs/tags/}"
           VERSION="${TAG#v}"
           cp "$APK" "Chess-Journal_${VERSION}_android.apk"
           echo "APK: $(ls -lh "Chess-Journal_${VERSION}_android.apk")"

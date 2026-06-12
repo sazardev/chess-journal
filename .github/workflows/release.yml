@@ -68,13 +68,25 @@ jobs:
             BUMP="patch"
           fi
 
+          # Propagate [skip android] from the triggering commit to the release
+          # commit so the Android workflow (triggered by the tag push) can read
+          # the flag and skip its build.
+          # Propagate [skip android] when it appears as a standalone flag
+          # (end of line, or followed by another `]` flag).  This avoids
+          # accidentally matching prose that happens to mention the token.
+          ORIGINAL_MSG=$(git log -1 --format=%B ${{ github.sha }} 2>/dev/null || true)
+          SKIP_ANDROID=""
+          if echo "$ORIGINAL_MSG" | grep -qE '\[skip android\](\s*$|\s*\])'; then
+            SKIP_ANDROID=" [skip android]"
+          fi
+
           if [ "$BUMP" != "none" ]; then
             node scripts/bump-version.mjs "$BUMP"
             VERSION=$(node -p "require('./package.json').version")
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml CHANGELOG.md
-            git commit -m "chore: release v$VERSION [skip release]"
+            git commit -m "chore: release v$VERSION [skip release]${SKIP_ANDROID}"
             git tag -a "v$VERSION" -m "Chess Journal v$VERSION"
             git push origin "HEAD:${GITHUB_REF_NAME}" --follow-tags
           else

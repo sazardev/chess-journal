@@ -13,9 +13,18 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
 
+  // @huggingface/transformers uses dynamic WASM imports that break when pre-bundled
+  optimizeDeps: {
+    exclude: ["@huggingface/transformers"],
+  },
+
   // The bundled ECO opening database is a lazy-loaded chunk, not initial payload.
   build: {
     chunkSizeWarningLimit: 700,
+  },
+
+  worker: {
+    format: "es",
   },
 
   clearScreen: false,

@@ -188,5 +188,6 @@ export const useConfigStore = create<ConfigState>((set) => {
       const st = await ensureStorage()
       await st.set("assistiveColor", assistiveColor)
     },
+
   }
 })

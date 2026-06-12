@@ -8,7 +8,9 @@
 import { create } from "zustand"
 import { isTauri } from "../lib/tauriGate"
 import { detectCapability, type Capability } from "../lib/ai/capability"
+import { detectDeviceProfile, type DeviceProfile } from "../lib/ai/deviceProfile"
 import { findModel, DEFAULT_MODEL_ID, setRuntime, unavailableRuntime } from "../lib/ai/runtime"
+import { detectPlatform } from "../hooks/usePlatform"
 import { useConfigStore } from "./useConfigStore"
 import { useAiCacheStore } from "./useAiCacheStore"
 
@@ -16,6 +18,7 @@ export type AiPhase = "unsupported" | "idle" | "preparing" | "ready" | "error"
 
 interface AiState {
   capability: Capability
+  deviceProfile: DeviceProfile | null
   modelId: string
   phase: AiPhase
   step: string
@@ -42,6 +45,7 @@ async function listenTauri<T>(event: string, handler: (payload: T) => void) {
 
 export const useAiStore = create<AiState>((set, get) => ({
   capability: { deviceMemoryGb: null, cores: 4, tier: "unknown", reason: "" },
+  deviceProfile: null,
   modelId: DEFAULT_MODEL_ID,
   phase: "idle",
   step: "",
@@ -54,6 +58,23 @@ export const useAiStore = create<AiState>((set, get) => ({
       set({ phase: "unsupported" })
       return
     }
+
+    // Android: use Transformers.js WASM runtime — local process inference is not possible
+    if (detectPlatform() === "android") {
+      const profile = detectDeviceProfile()
+      // ONNX WASM needs ≥ 4 GB RAM — below that the WebView renderer OOMs
+      if (profile.memGb !== null && profile.memGb < 4) {
+        set({
+          deviceProfile: profile,
+          phase: "unsupported",
+          error: `On-device AI requires ≥ 4 GB RAM (detected ${profile.memGb} GB).`,
+        })
+        return
+      }
+      set({ deviceProfile: profile, phase: "idle" })
+      return
+    }
+
     const capability = detectCapability()
     let assetsPresent = false
     try {
@@ -70,8 +91,32 @@ export const useAiStore = create<AiState>((set, get) => ({
   },
 
   enable: async () => {
-    const { phase, capability } = get()
+    const { phase, capability, deviceProfile } = get()
     if (phase === "preparing" || phase === "ready") return
+
+    // Android: load Transformers.js WASM model (download once, then cached)
+    if (deviceProfile !== null) {
+      set({ phase: "preparing", step: DOWNLOAD_STEP, progress: 0, error: null })
+      try {
+        const { getTransformersRuntime } = await import("../lib/ai/transformersRuntime")
+        const rt = getTransformersRuntime()
+        await rt.load((progress) => set({ progress }))
+        if (!useConfigStore.getState().aiCommentary) {
+          const { terminateTransformersRuntime } = await import("../lib/ai/transformersRuntime")
+          terminateTransformersRuntime()
+          set({ phase: "idle", step: "", progress: 0 })
+          return
+        }
+        setRuntime(rt)
+        set({ phase: "ready", step: "", progress: 1, error: null, assetsPresent: true })
+      } catch (e) {
+        setRuntime(unavailableRuntime)
+        console.error("Transformers.js setup failed:", e)
+        set({ phase: "error", step: "", error: "Couldn't load AI model. Check your connection and try again." })
+      }
+      return
+    }
+
     if (capability.tier === "unsupported") {
       set({ phase: "unsupported" })
       return
@@ -158,7 +203,12 @@ export const useAiStore = create<AiState>((set, get) => ({
   },
 
   disable: async () => {
-    if (await isTauri()) {
+    const { deviceProfile, capability } = get()
+    if (deviceProfile !== null) {
+      // Android: free the WASM worker memory
+      const { terminateTransformersRuntime } = await import("../lib/ai/transformersRuntime")
+      terminateTransformersRuntime()
+    } else if (await isTauri()) {
       try {
         await invokeTauri("ai_stop")
       } catch {
@@ -166,18 +216,15 @@ export const useAiStore = create<AiState>((set, get) => ({
       }
     }
     setRuntime(unavailableRuntime)
-    set({
-      phase: get().capability.tier === "unsupported" ? "unsupported" : "idle",
-      step: "",
-      progress: 0,
-      error: null,
-    })
+    const phase = deviceProfile !== null ? "idle" : capability.tier === "unsupported" ? "unsupported" : "idle"
+    set({ phase, step: "", progress: 0, error: null })
   },
 
   removeAssets: async () => {
     useConfigStore.getState().setAiCommentary(false)
+    const { deviceProfile, capability } = get()
     await get().disable()
-    if (await isTauri()) {
+    if (deviceProfile === null && (await isTauri())) {
       try {
         await invokeTauri("ai_remove_all")
       } catch {
@@ -185,13 +232,8 @@ export const useAiStore = create<AiState>((set, get) => ({
       }
     }
     useAiCacheStore.getState().clear()
-    set({
-      assetsPresent: false,
-      phase: get().capability.tier === "unsupported" ? "unsupported" : "idle",
-      step: "",
-      progress: 0,
-      error: null,
-    })
+    const phase = deviceProfile !== null ? "idle" : capability.tier === "unsupported" ? "unsupported" : "idle"
+    set({ assetsPresent: false, phase, step: "", progress: 0, error: null })
   },
 }))
 

@@ -3,13 +3,19 @@ import { useConfigStore } from "../stores/useConfigStore"
 import { useAiStore } from "../stores/useAiStore"
 import { useAiCacheStore } from "../stores/useAiCacheStore"
 import { useAnalysisCacheStore } from "../stores/useAnalysisCacheStore"
+import { usePlatform } from "../hooks/usePlatform"
 
 /**
  * Minimalist AI-commentary control: a single On/Off switch (assets download +
  * engine start happen automatically with a progress status), plus low-key cache
  * and asset management. No model/engine specifics are shown to the user.
+ *
+ * On Android uses Transformers.js (WASM) — same click-to-enable flow as desktop.
  */
 export default function AiSettings({ size = "sm" }: { size?: "sm" | "md" }) {
+  const platform = usePlatform()
+  const isAndroid = platform === "android"
+
   const aiOn = useConfigStore((s) => s.aiCommentary)
   const setAiOn = useConfigStore((s) => s.setAiCommentary)
 
@@ -19,6 +25,7 @@ export default function AiSettings({ size = "sm" }: { size?: "sm" | "md" }) {
   const error = useAiStore((s) => s.error)
   const assetsPresent = useAiStore((s) => s.assetsPresent)
   const removeAssets = useAiStore((s) => s.removeAssets)
+  const deviceProfile = useAiStore((s) => s.deviceProfile)
 
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [cleared, setCleared] = useState(false)
@@ -32,6 +39,10 @@ export default function AiSettings({ size = "sm" }: { size?: "sm" | "md" }) {
   const linkBtn =
     "font-mono text-[8px] uppercase tracking-[0.08em] py-1 text-gray-400 transition-colors hover:text-black"
 
+  const idleDescription = isAndroid
+    ? "Written commentary, runs privately on your device using WebAssembly. Downloads ~220 MB the first time."
+    : "Written commentary, generated privately on your device. Downloads assets the first time."
+
   const status = unsupported
     ? "This device can't run on-device AI."
     : phase === "preparing"
@@ -42,7 +53,7 @@ export default function AiSettings({ size = "sm" }: { size?: "sm" | "md" }) {
           ? (error ?? "Couldn't set up AI.")
           : aiOn
             ? "Starting AI…"
-            : "Written commentary, generated privately on your device. Downloads assets the first time."
+            : idleDescription
 
   const showBar = phase === "preparing" && step === "Downloading AI assets…"
 
@@ -93,6 +104,12 @@ export default function AiSettings({ size = "sm" }: { size?: "sm" | "md" }) {
             />
           </div>
         )}
+        {isAndroid && deviceProfile && !unsupported && phase === "idle" && !aiOn && (
+          <p className="mt-0.5 font-mono text-[7px] text-gray-300">
+            {deviceProfile.memGb != null ? `${deviceProfile.memGb} GB RAM · ` : ""}
+            {deviceProfile.cores} cores · tier: {deviceProfile.tier}
+          </p>
+        )}
       </div>
 
       {!unsupported && (
@@ -100,7 +117,7 @@ export default function AiSettings({ size = "sm" }: { size?: "sm" | "md" }) {
           <button onClick={clearCache} className={linkBtn}>
             {cleared ? "Cache cleared" : "Clear cache"}
           </button>
-          {assetsPresent && (
+          {assetsPresent && !isAndroid && (
             <button onClick={onRemove} className={`${linkBtn} hover:text-black`}>
               {confirmRemove ? "Tap to confirm" : "Remove AI assets"}
             </button>

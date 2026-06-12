@@ -52,19 +52,6 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0
 
-      # On tag push, skip the entire job when the tag's commit carries the
-      # [skip android] flag (propagated by release.yml's bump step).
-      - name: Check skip conditions
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          COMMIT_MSG=$(git log -1 --format=%B "${{ github.ref_name }}" 2>/dev/null || true)
-          if [[ "$COMMIT_MSG" == *"[skip android]"* ]]; then
-            echo "[skip android] found — exiting"
-            exit 0
-          fi
-          echo "Android build will proceed."
-
       # ── Frontend toolchain ────────────────────────────────────────────
       - uses: actions/setup-node@v4
         with:
@@ -166,10 +153,24 @@ jobs:
           path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
 
-      # Attach APK to the GitHub Release.  On tag push the release may not
-      # exist yet (desktop build still running), so we retry with a back-off.
+      # Resolve the release tag for both push (tag trigger) and
+      # workflow_dispatch (triggered by release.yml with inputs.ref = tag).
+      - name: Resolve release tag
+        id: release_tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref_name }}" =~ ^v ]]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [[ "${{ inputs.ref }}" =~ ^v ]]; then
+            echo "tag=${{ inputs.ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Attach APK to the GitHub Release.  The release may not exist yet
+      # (desktop build still running), so we retry with a back-off.
       - name: Attach APK to GitHub Release
-        if: github.event_name == 'push'
+        if: steps.release_tag.outputs.tag != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -182,7 +183,7 @@ jobs:
             exit 1
           fi
 
-          TAG="${{ github.ref_name }}"
+          TAG="${{ steps.release_tag.outputs.tag }}"
           VERSION="${TAG#v}"
           cp "$APK" "Chess-Journal_${VERSION}_android.apk"
           echo "APK: $(ls -lh "Chess-Journal_${VERSION}_android.apk")"

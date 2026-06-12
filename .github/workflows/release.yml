@@ -118,3 +118,18 @@ jobs:
           releaseBody: "Download **Chess Journal_${{ steps.version.outputs.version }}_x64-setup.exe** below and run it. Installed copies update themselves automatically."
           releaseDraft: false
           prerelease: false
+
+      # GITHUB_TOKEN pushes cannot trigger other workflows automatically.
+      # Explicitly dispatch android.yml so the APK gets built and attached.
+      - name: Trigger Android APK build
+        if: ${{ !contains(github.event.head_commit.message || '', '[skip android]') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          echo "Dispatching Android build for $TAG"
+          gh workflow run android.yml \
+            --ref "$TAG" \
+            -f ref="$TAG" \
+            -f build_type=release \
+            -f run_emulator=false

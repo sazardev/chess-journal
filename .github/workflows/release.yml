@@ -96,23 +96,6 @@ jobs:
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      # GITHUB_TOKEN pushes don't trigger new workflows (by design), so we
-      # explicitly dispatch the Android build.  It builds in parallel with
-      # the desktop release below and retries upload until the Release exists.
-      - name: Trigger Android build
-        if: steps.version.outputs.tag != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ORIGINAL_MSG=$(git log -1 --format=%B ${{ github.sha }} 2>/dev/null || true)
-          if echo "$ORIGINAL_MSG" | grep -qE '\[skip android\](\s*$|\s*\])'; then
-            echo "[skip android] detected — skipping Android dispatch"
-          else
-            gh workflow run android.yml -f ref="${{ steps.version.outputs.tag }}" \
-              -f build_type=release -f run_emulator=false
-            echo "Android build dispatched for ${{ steps.version.outputs.tag }}"
-          fi
-
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:

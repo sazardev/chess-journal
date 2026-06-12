@@ -1,6 +1,10 @@
-# The npm `stockfish` package's build script is not needed: the app runs the
-# vendored engine at public/stockfish-engine.js via a Web Worker and never
-# imports the package. Skipping its build keeps `pnpm <script>` from failing
-# with ERR_PNPM_IGNORED_BUILDS.
+# Build scripts skipped intentionally:
+# - stockfish: app uses the vendored public/stockfish-engine.js, never imports the package.
+# - onnxruntime-node: @huggingface/transformers is used in browser WASM mode only;
+#   the native Node.js binding is not needed.
+# - protobufjs / sharp: transitive deps that don't need native compilation for this app.
 allowBuilds:
+  onnxruntime-node: false
+  protobufjs: false
+  sharp: false
   stockfish: false

@@ -31,6 +31,7 @@ searchable game library, with everything saved automatically.
 - **Library** — search, sort, favorites (♥) and pins (★), with quick load.
 - **Annotations** — arrows, highlights, bookmarks and per-move comments.
 - **Import / export** — FEN, PGN and JSON; export the board as PNG.
+- **Chess.com import** — pull your games from Chess.com by username and date range.
 - **Responsive** — tuned for desktop, tablet and small windows.
 - **Auto-updates** — checks GitHub on launch and updates itself in one click.
 

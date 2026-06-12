@@ -10,6 +10,7 @@ import { newGame } from "../lib/session"
 import { useTouch } from "../hooks/useTouch"
 import OpeningStats from "./OpeningStats"
 import PuzzleList from "./PuzzleList"
+import ChesscomImport from "./ChesscomImport"
 import { usePuzzleStore } from "../stores/usePuzzleStore"
 import type { Puzzle } from "../data/puzzles"
 import { HISTORIC, loadClassics, type ClassicGame, type ClassicCategory } from "../data/classics"
@@ -75,6 +76,7 @@ export default function Library({ open, onToggle, topInset }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [deletedEntry, setDeletedEntry] = useState<{ id: string; entry: ReturnType<typeof useLibraryStore.getState>["entries"][0] } | null>(null)
+  const [showChesscomImport, setShowChesscomImport] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const undoRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -466,6 +468,12 @@ export default function Library({ open, onToggle, topInset }: Props) {
                 Stats
               </button>
               <button
+                onClick={() => setShowChesscomImport(true)}
+                className="font-mono text-[10px] md:text-[9px] uppercase tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
+              >
+                Import
+              </button>
+              <button
                 onClick={handleNewClick}
                 className="font-mono text-[10px] md:text-[9px] uppercase tracking-[0.1em] text-gray-400 hover:text-black transition-colors"
               >
@@ -491,7 +499,9 @@ export default function Library({ open, onToggle, topInset }: Props) {
             ))}
           </div>
 
-          {tab === "mine" && (
+          {tab === "mine" && (showChesscomImport ? (
+            <ChesscomImport onClose={() => setShowChesscomImport(false)} />
+          ) : (
           <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-center gap-1 px-3 pb-1.5 pt-1.5">
             <input
@@ -578,7 +588,7 @@ export default function Library({ open, onToggle, topInset }: Props) {
             )}
           </div>
           </div>
-          )}
+          ))}
 
           {tab === "classics" && (
           <div className="flex min-h-0 flex-1 flex-col">

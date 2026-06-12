@@ -52,7 +52,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       ? entries.map((e, i) => (i === idx ? entry : e))
       : [entry, ...entries]
 
-    const trimmed = next.slice(0, 50)
+    const trimmed = next.slice(0, 200)
     set({ entries: trimmed })
     await persist(trimmed)
     return id

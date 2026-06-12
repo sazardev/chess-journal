@@ -6,8 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+<<<<<<< HEAD
 ### Added
 - **Chess.com import** — pull your games from Chess.com by entering your username and a date range (Library → My games → Import). Fetches game archives via the Chess.com public API and imports them as library entries with auto-detected player color.
+=======
+## [0.1.16] - 2026-06-11
+>>>>>>> 6c3c8ab38bce3b3397dc7ad1c52609b1fc0f4bfb
 
 ## [0.1.15] - 2026-06-11
 

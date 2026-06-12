@@ -68,8 +68,25 @@ class TransformersRuntime implements LocalModelRuntime {
     if (this._status !== "ready") throw new Error("Model not ready")
     const id = crypto.randomUUID()
     return new Promise<string>((resolve, reject) => {
-      this.pending.set(id, { onToken, resolve, reject, accum: "" })
+      let timer: ReturnType<typeof setTimeout> | null = null
+      const done = (fn: () => void) => {
+        if (timer) clearTimeout(timer)
+        this.pending.delete(id)
+        fn()
+      }
+      this.pending.set(id, {
+        onToken,
+        resolve: (s) => done(() => resolve(s)),
+        reject: (e) => done(() => reject(e)),
+        accum: "",
+      })
       this.worker!.postMessage({ type: "generate", id, system: messages.system, user: messages.user, maxTokens: 320 })
+      // Guard against the worker hanging on low-memory Android devices.
+      timer = setTimeout(() => {
+        if (this.pending.has(id)) {
+          this.pending.get(id)!.reject(new Error("AI timed out — device may need more memory"))
+        }
+      }, 45_000)
     })
   }
 

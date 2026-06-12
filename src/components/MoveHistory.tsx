@@ -115,6 +115,13 @@ export default function MoveHistory() {
   const isLlm = explainer.kind === "llm"
   const [moveComment, setMoveComment] = useState("")
   const [moveStreaming, setMoveStreaming] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!aiError) return
+    const t = setTimeout(() => setAiError(null), 10_000)
+    return () => clearTimeout(t)
+  }, [aiError])
 
   // Whether the active move has a cached eval — a STABLE trigger (boolean), so the
   // live engine deepening its eval (mutating `byFen` repeatedly) doesn't restart
@@ -174,8 +181,11 @@ export default function MoveHistory() {
           setMoveComment(text)
           if (text) useAiCacheStore.getState().setMove(key, text)
         })
-        .catch(() => {
-          if (!cancelled) setMoveComment("")
+        .catch((err) => {
+          if (!cancelled) {
+            setMoveComment("")
+            setAiError(err instanceof Error ? err.message : "AI commentary failed")
+          }
         })
         .finally(() => {
           if (!cancelled) setMoveStreaming(false)
@@ -310,6 +320,20 @@ export default function MoveHistory() {
             }`}
           >
             Fast
+          </button>
+        </div>
+      )}
+
+      {isLlm && aiError && (
+        <div className="mx-3 mb-1 flex items-start justify-between gap-2 border border-red-200 bg-red-50 px-2 py-1.5">
+          <p className="font-mono text-[8px] leading-snug text-red-600">
+            AI: {aiError}
+          </p>
+          <button
+            onClick={() => setAiError(null)}
+            className="flex-shrink-0 font-mono text-[9px] text-red-400 hover:text-red-700"
+          >
+            ✕
           </button>
         </div>
       )}

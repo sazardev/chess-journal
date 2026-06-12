@@ -128,8 +128,10 @@ jobs:
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           echo "Dispatching Android build for $TAG"
+          # Use --ref master so the latest workflow definition runs;
+          # inputs.ref tells the workflow which tag to check out and attach to.
           gh workflow run android.yml \
-            --ref "$TAG" \
+            --ref master \
             -f ref="$TAG" \
             -f build_type=release \
             -f run_emulator=false
